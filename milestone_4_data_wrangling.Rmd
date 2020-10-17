@@ -1,0 +1,55 @@
+---
+title: "Milestone 4 Data Wrangling"
+author: "Owen Asnis"
+date: "10/14/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggthemes)
+```
+
+```{r p1}
+presidents <- read_csv("raw_data/1976-2016-president.csv", 
+                       col_type = cols(year = col_double(),
+                                       state = col_character(),
+                                       state_po = col_character(),
+                                       state_fips = col_double(),
+                                       state_cen = col_double(),
+                                       state_ic = col_double(),
+                                       office = col_character(),
+                                       candidate = col_character(),
+                                       party = col_character(),
+                                       writein = col_logical(),
+                                       candidatevotes = col_double(),
+                                       totalvotes = col_double(),
+                                       version = col_double(),
+                                       notes = col_logical())) %>% 
+   filter(party %in% c("republican", "democrat"), 
+         state %in% c("Arizona", "Florida", "Michigan", 
+                      "North Carolina", "Pennsylvania", "Wisconsin")) %>% 
+  drop_na(candidate) %>% 
+  mutate(candidate_vote_percentage = (candidatevotes / totalvotes) * 100) %>%
+  select(year, state, party, candidate_vote_percentage)
+
+```
+
+```{r p2}
+
+presidents %>% 
+  ggplot(aes(x = year, y = candidate_vote_percentage, color = party)) + 
+  geom_line() + 
+  facet_wrap(~ state) + 
+  scale_color_manual(labels = c("Democrat", "Republican"), 
+                     values = c("blue2", "red2"), 
+                     name = "Candidate Party", 
+                     breaks = c("democrat", "republican")) + 
+  theme_bw() + 
+  labs(title = "Recent Electoral History of 2020 Swing States", 
+       subtitle = "How will states trend in 2020?", 
+       x = "Election Year (1976 - 2016)", 
+       y = "Percentage Party Vote Share")
+
+```
