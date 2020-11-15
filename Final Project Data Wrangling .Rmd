@@ -1,0 +1,79 @@
+---
+title: "Final Project Data Wrangling"
+author: "Owen Asnis"
+date: "11/11/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+library(tidyverse)
+library(tidycensus)
+library(usmap)
+
+```
+
+```{r cleaned data}
+
+countypres <- read_csv("raw_data/countypres_2000-2016.csv", 
+                       col_types = cols(year = col_double(),
+                                        state = col_character(),
+                                        state_po = col_character(),
+                                        county = col_character(),
+                                        FIPS = col_character(),
+                                        office = col_character(),
+                                        candidate = col_character(),
+                                        party = col_character(),
+                                        candidatevotes = col_double(),
+                                        totalvotes = col_double(),
+                                        version = col_double())) %>%
+  filter(state_po %in% c("PA", "WI", "MI"), 
+         party %in% c("democrat", "republican"), 
+         year %in% c(2012, 2016)) %>% 
+  select(- state, - office, - version) %>% 
+  mutate(vote_share = (candidatevotes/totalvotes) * 100, 
+         party = case_when(party == "democrat" ~ "D", 
+                           party == "republican" ~ "R")) %>%
+  pivot_wider(names_from = "candidate", 
+              values_from = "vote_share") %>% 
+  group_by(FIPS, year) %>% 
+  summarize(Obama = mean(`Barack Obama`, na.rm = TRUE), 
+            Clinton = mean(`Hillary Clinton`, na.rm = TRUE),
+            Romney = mean(`Mitt Romney`, na.rm = TRUE), 
+            Trump = mean(`Donald Trump`, na.rm = TRUE),
+            .groups = "keep") %>% 
+  mutate(dem_vs = if_else(year == 2012, Obama, Clinton), 
+         rep_vs = if_else(year == 2012, Romney, Trump)) %>% 
+  select(- Obama, - Clinton, - Romney, - Trump) %>% 
+  left_join(nhgis, by = "FIPS") 
+
+```
+
+```{r demographic}
+
+nhgis <- read_csv("raw_data/nhgis.csv") %>% 
+  mutate(FIPS = paste0(STATEA, COUNTYA), 
+         white_pct = (AF2ME002 / AF2ME001) * 100, 
+         black_pct = (AF2ME003 / AF2ME001) * 100, 
+         asian_pct = (AF2ME005 / AF2ME001) * 100, 
+         other_pct = (AF2ME009 / AF2ME001) * 100, 
+         high_school_degree = ((AF4OE017 + AF4OE018) / AF4OE001) * 100, 
+         college_no_degree = ((AF4OE019 + AF4OE020) / AF4OE001) * 100, 
+         bachelors_degree = (AF4OE022 / AF4OE001) * 100, 
+         grad_degree = ((AF4OE023 + AF4OE024 + AF4OE023) / AF4OE001) * 100, 
+         median_household_income = AF49E001) %>% 
+  select(FIPS, white_pct, black_pct, asian_pct, other_pct, high_school_degree, 
+         college_no_degree, bachelors_degree, grad_degree, 
+         median_household_income)
+         
+```
+
+
+```{r maps}
+
+plot_usmap(include = c("MI", "WI", "PA"), 
+           regions = "counties")
+
+```
+
