@@ -11,6 +11,8 @@ knitr::opts_chunk$set(echo = FALSE)
 library(tidyverse)
 library(tidycensus)
 library(usmap)
+library(rstanarm)
+library(gtsummary)
 
 ```
 
@@ -46,7 +48,8 @@ countypres <- read_csv("raw_data/countypres_2000-2016.csv",
   mutate(dem_vs = if_else(year == 2012, Obama, Clinton), 
          rep_vs = if_else(year == 2012, Romney, Trump)) %>% 
   select(- Obama, - Clinton, - Romney, - Trump) %>% 
-  left_join(nhgis, by = "FIPS") 
+  left_join(nhgis, by = "FIPS") %>% 
+  left_join(nhgis_pop, by = "FIPS")
 
 ```
 
@@ -54,26 +57,191 @@ countypres <- read_csv("raw_data/countypres_2000-2016.csv",
 
 nhgis <- read_csv("raw_data/nhgis.csv") %>% 
   mutate(FIPS = paste0(STATEA, COUNTYA), 
-         white_pct = (AF2ME002 / AF2ME001) * 100, 
+         white_pct = (AF2ME002 / AF2ME001) * 100,
+         raw_white = AF2ME002, 
          black_pct = (AF2ME003 / AF2ME001) * 100, 
-         asian_pct = (AF2ME005 / AF2ME001) * 100, 
-         other_pct = (AF2ME009 / AF2ME001) * 100, 
-         high_school_degree = ((AF4OE017 + AF4OE018) / AF4OE001) * 100, 
-         college_no_degree = ((AF4OE019 + AF4OE020) / AF4OE001) * 100, 
+         raw_black = AF2ME003, 
+         asian_pct = (AF2ME005 / AF2ME001) * 100,
+         raw_asian = AF2ME005, 
+         other_pct = (AF2ME009 / AF2ME001) * 100,
+         raw_other = AF2ME009, 
+         high_school_degree = ((AF4OE017 + AF4OE018) / AF4OE001) * 100,
+         raw_high_school_degree = AF4OE017 + AF4OE018, 
+         college_no_degree = ((AF4OE019 + AF4OE020) / AF4OE001) * 100,
+         raw_college_no_degree = AF4OE019 + AF4OE020, 
          bachelors_degree = (AF4OE022 / AF4OE001) * 100, 
-         grad_degree = ((AF4OE023 + AF4OE024 + AF4OE023) / AF4OE001) * 100, 
+         raw_bachelors_degree = AF4OE022, 
+         grad_degree = ((AF4OE023 + AF4OE024 + AF4OE023) / AF4OE001) * 100,
+         raw_grad_degree = AF4OE023 + AF4OE024 + AF4OE023,  
          median_household_income = AF49E001) %>% 
   select(FIPS, white_pct, black_pct, asian_pct, other_pct, high_school_degree, 
          college_no_degree, bachelors_degree, grad_degree, 
-         median_household_income)
-         
+         median_household_income, raw_white, raw_black, raw_asian, raw_other, 
+         raw_high_school_degree, raw_college_no_degree, raw_bachelors_degree, 
+         raw_grad_degree)
+
+nhgis_pop <- read_csv("raw_data/pop.csv") %>%  
+  mutate(FIPS = paste0(STATEA, COUNTYA), 
+         pop = AF2LE001) %>% 
+  select(FIPS, pop)
+    
 ```
 
 
 ```{r maps}
 
-plot_usmap(include = c("MI", "WI", "PA"), 
-           regions = "counties")
+e2012 <- countypres %>% 
+  filter(year == 2012) %>% 
+  ungroup() %>% 
+  select(FIPS, "dem_vs") %>% 
+  rename(fips = FIPS, value = dem_vs)
+
+e2016 <- countypres %>% 
+  filter(year == 2016) %>% 
+  ungroup() %>% 
+  select(FIPS, "dem_vs") %>%
+  rename(fips = FIPS, value = dem_vs)
+  
+
+plot_usmap(include = c("WI", "MI", "PA"), 
+           regions = "counties", 
+           data = e2012, 
+           values = "value") + 
+  scale_fill_gradient2(name = "Vote Share", 
+                       low = "red1",
+                       mid = "white",
+                       high = "darkblue", 
+                       midpoint = 50, 
+                       breaks = c(25, 50, 75), 
+                       labels = c("+25% R", "E", "+25% D")) + 
+  labs(title = "2012 Presidential Election Results By County") 
+
+plot_usmap(include = c("WI", "MI", "PA"), 
+           regions = "counties", 
+           data = e2016, 
+           values = "value") + 
+  scale_fill_gradient2(name = "Vote Share", 
+                       low = "red1",
+                       mid = "white",
+                       high = "darkblue", 
+                       midpoint = 50, 
+                       breaks = c(25, 50, 75), 
+                       labels = c("+25% R", "E", "+25% D")) + 
+  labs(title = "2016 Presidential Election Results By County") 
+
+```
+
+```{r trends}
+
+dem_trend <- countypres %>%
+  mutate(dem_diff = dem_vs - rep_vs) %>%  
+  select(FIPS, year, dem_diff) %>% 
+  group_by(FIPS) %>% 
+  summarize(dem_chg = diff(dem_diff), 
+            .groups = "drop") 
+
+dem_trend %>% 
+  mutate(state = case_when(str_sub(FIPS, 1, 2) == 26 ~ "Michigan", 
+                           str_sub(FIPS, 1, 2) == 42 ~ "Pennsylvania", 
+                           str_sub(FIPS, 1, 2) == 55 ~ "Wisconsin")) %>%
+  ggplot(aes(x = dem_chg, fill = state)) + 
+  geom_histogram(binwidth = 1, 
+                 color = "white") + 
+  scale_x_continuous(breaks = c(-30, -20, -10, 0, 10), 
+                     labels = c("+30% R", "+20% R", "+10% R", 
+                                "Even", "+10% D")) + 
+  scale_fill_manual(breaks = c("Michigan", "Pennsylvania", "Wisconsin"), 
+                    values = c("darkgreen", "midnightblue", "red3"), 
+                    name = "County State") + 
+  labs(title = "Vote Share Change from 2012 to 2016", 
+       subtitle = "Republicans gain in nearly all MI, PA and WI counties", 
+       x = "Vote Share Change", 
+       y = "Number of Counties") + 
+  theme_linedraw()
+
+```
+
+```{r swings}
+
+swings <- dem_trend %>% 
+  arrange(dem_chg)
+
+swings_map <- swings %>% 
+  select(FIPS, dem_chg) %>% 
+  rename(fips = FIPS, value = dem_chg)
+
+plot_usmap(include = c("WI", "MI", "PA"), 
+           regions = "counties", 
+           data = swings_map, 
+           values = "value") + 
+    scale_fill_gradient2(name = "Swing", 
+                         low = "red1",
+                         mid = "white",
+                         high = "darkblue", 
+                         midpoint = 0, 
+                         breaks = c(10, 0, -10, -20, -30), 
+                         labels = c("+10% D", "Even", "+10% R", 
+                                    "+20% R", "+30% R")) + 
+  labs(title = "Swings from 2012 to 2016", 
+       subtitle = "Republicans gain in rural/suburban areas")
+
+```
+
+```{r top swing demographics}
+
+demographics <- countypres %>% 
+  ungroup() %>% 
+  filter(year == 2016) %>% 
+  select(-year, -dem_vs, -rep_vs) 
+
+top_25_summary_stats <- swings %>% 
+  arrange(desc(abs(dem_chg))) %>% 
+  head(25) %>% 
+  left_join(demographics, by = "FIPS") %>% 
+  summarize(total_white = sum(raw_white), 
+            total_nonwhite = sum(raw_black + raw_asian + raw_other), 
+            total_less_college = sum(raw_high_school_degree + 
+                                       raw_college_no_degree), 
+            total_college_more = sum(raw_bachelors_degree + raw_grad_degree), 
+            total_population = sum(pop), 
+            avg_pop = mean(pop)) %>% 
+  mutate(white_pct = (total_white / total_population) * 100, 
+         nonwhite_pct = (total_nonwhite / total_population) * 100, 
+         less_college_pct = (total_less_college / total_population) * 100, 
+         college_more_pct = (total_college_more / total_population) * 100) %>%  
+  select(white_pct, nonwhite_pct, less_college_pct, college_more_pct, avg_pop)
+
+summary_stats <- swings %>% 
+  left_join(demographics, by = "FIPS") %>% 
+  summarize(total_white = sum(raw_white), 
+            total_nonwhite = sum(raw_black + raw_asian + raw_other), 
+            total_less_college = sum(raw_high_school_degree + 
+                                       raw_college_no_degree), 
+            total_college_more = sum(raw_bachelors_degree + raw_grad_degree), 
+            total_population = sum(pop), 
+            avg_pop = mean(pop)) %>% 
+  mutate(white_pct = (total_white / total_population) * 100, 
+         nonwhite_pct = (total_nonwhite / total_population) * 100, 
+         less_college_pct = (total_less_college / total_population) * 100, 
+         college_more_pct = (total_college_more / total_population) * 100) %>%  
+  select(white_pct, nonwhite_pct, less_college_pct, college_more_pct, avg_pop)
+
+full_join(top_25_summary_stats, summary_stats, 
+          by = c("white_pct", "nonwhite_pct", "less_college_pct", 
+                 "college_more_pct", "avg_pop")) %>% 
+  mutate(from = c("top 25 swings", "all")) 
+
+```
+
+```{r models}
+
+countypres2012 <- countypres %>% 
+  filter(year == 2012) %>% 
+  ungroup()
+
+countypres2016 <- countypres %>% 
+  filter(year == 2016) %>% 
+  ungroup()
 
 ```
 
