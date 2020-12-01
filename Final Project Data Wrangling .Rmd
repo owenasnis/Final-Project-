@@ -63,8 +63,9 @@ nhgis <- read_csv("raw_data/nhgis.csv") %>%
          raw_black = AF2ME003, 
          asian_pct = (AF2ME005 / AF2ME001) * 100,
          raw_asian = AF2ME005, 
-         other_pct = (AF2ME009 / AF2ME001) * 100,
-         raw_other = AF2ME009, 
+         other_pct = ((AF2ME004 + AF2ME006 + AF2ME007 + AF2ME008) / AF2ME001) 
+         * 100,
+         raw_other = AF2ME004 + AF2ME006 + AF2ME007 + AF2ME008, 
          high_school_degree = ((AF4OE017 + AF4OE018) / AF4OE001) * 100,
          raw_high_school_degree = AF4OE017 + AF4OE018, 
          college_no_degree = ((AF4OE019 + AF4OE020) / AF4OE001) * 100,
@@ -145,19 +146,18 @@ dem_trend %>%
                            str_sub(FIPS, 1, 2) == 42 ~ "Pennsylvania", 
                            str_sub(FIPS, 1, 2) == 55 ~ "Wisconsin")) %>%
   ggplot(aes(x = dem_chg, fill = state)) + 
-  geom_histogram(binwidth = 1, 
-                 color = "white") + 
+  geom_density(alpha = 0.75) + 
   scale_x_continuous(breaks = c(-30, -20, -10, 0, 10), 
                      labels = c("+30% R", "+20% R", "+10% R", 
                                 "Even", "+10% D")) + 
   scale_fill_manual(breaks = c("Michigan", "Pennsylvania", "Wisconsin"), 
-                    values = c("darkgreen", "midnightblue", "red3"), 
-                    name = "County State") + 
+                    values = c("darkgreen", "midnightblue", "red3")) +
   labs(title = "Vote Share Change from 2012 to 2016", 
        subtitle = "Republicans gain in nearly all MI, PA and WI counties", 
        x = "Vote Share Change", 
-       y = "Number of Counties") + 
-  theme_linedraw()
+       y = "Percentage of Counties") + 
+  theme_minimal() + 
+  scale_y_continuous(labels = scales::percent_format())
 
 ```
 
@@ -166,24 +166,45 @@ dem_trend %>%
 swings <- dem_trend %>% 
   arrange(dem_chg)
 
-swings_map <- swings %>% 
+swings_map_r <- swings %>% 
   select(FIPS, dem_chg) %>% 
+  filter(dem_chg < 0) %>% 
+  rename(fips = FIPS, value = dem_chg)
+
+swings_map_d <- swings %>% 
+  select(FIPS, dem_chg) %>% 
+  filter(dem_chg > 0) %>% 
   rename(fips = FIPS, value = dem_chg)
 
 plot_usmap(include = c("WI", "MI", "PA"), 
            regions = "counties", 
-           data = swings_map, 
+           data = swings_map_r, 
            values = "value") + 
     scale_fill_gradient2(name = "Swing", 
                          low = "red1",
                          mid = "white",
                          high = "darkblue", 
                          midpoint = 0, 
-                         breaks = c(10, 0, -10, -20, -30), 
-                         labels = c("+10% D", "Even", "+10% R", 
-                                    "+20% R", "+30% R")) + 
-  labs(title = "Swings from 2012 to 2016", 
-       subtitle = "Republicans gain in rural/suburban areas")
+                         breaks = c(0, -10, -20, -30), 
+                         labels = c("Even", "+10% R", "+20% R", "+30% R")) + 
+  labs(title = "Counties Where Republicans Outperformed 2012", 
+       subtitle = "Huge rural gains, and minor gains in urban centers", 
+       caption = "Source: MIT Election Lab")
+
+plot_usmap(include = c("WI", "MI", "PA"), 
+           regions = "counties", 
+           data = swings_map_d, 
+           values = "value") + 
+    scale_fill_gradient2(name = "Swing", 
+                         low = "red1",
+                         mid = "white",
+                         high = "darkblue", 
+                         midpoint = 0, 
+                         breaks = c(0, 10), 
+                         labels = c("Even", "+10% D")) + 
+  labs(title = "Counties Where Democrats Outperformed 2012", 
+       subtitle = "Minor suburban gains, but failure in rural areas and urban centers", 
+       caption = "Source: MIT Election Lab")
 
 ```
 
@@ -204,12 +225,14 @@ top_25_summary_stats <- swings %>%
                                        raw_college_no_degree), 
             total_college_more = sum(raw_bachelors_degree + raw_grad_degree), 
             total_population = sum(pop), 
-            avg_pop = mean(pop)) %>% 
+            avg_pop = mean(pop), 
+            avg_income = mean(median_household_income)) %>% 
   mutate(white_pct = (total_white / total_population) * 100, 
          nonwhite_pct = (total_nonwhite / total_population) * 100, 
          less_college_pct = (total_less_college / total_population) * 100, 
          college_more_pct = (total_college_more / total_population) * 100) %>%  
-  select(white_pct, nonwhite_pct, less_college_pct, college_more_pct, avg_pop)
+  select(white_pct, nonwhite_pct, less_college_pct, college_more_pct, avg_pop, 
+         avg_income)
 
 summary_stats <- swings %>% 
   left_join(demographics, by = "FIPS") %>% 
@@ -219,29 +242,46 @@ summary_stats <- swings %>%
                                        raw_college_no_degree), 
             total_college_more = sum(raw_bachelors_degree + raw_grad_degree), 
             total_population = sum(pop), 
-            avg_pop = mean(pop)) %>% 
+            avg_pop = mean(pop),
+            avg_income = mean(median_household_income)) %>% 
   mutate(white_pct = (total_white / total_population) * 100, 
          nonwhite_pct = (total_nonwhite / total_population) * 100, 
          less_college_pct = (total_less_college / total_population) * 100, 
          college_more_pct = (total_college_more / total_population) * 100) %>%  
-  select(white_pct, nonwhite_pct, less_college_pct, college_more_pct, avg_pop)
+  select(white_pct, nonwhite_pct, less_college_pct, college_more_pct, avg_pop, 
+         avg_income)
 
-full_join(top_25_summary_stats, summary_stats, 
-          by = c("white_pct", "nonwhite_pct", "less_college_pct", 
-                 "college_more_pct", "avg_pop")) %>% 
-  mutate(from = c("top 25 swings", "all")) 
+compare_stats <- full_join(top_25_summary_stats, summary_stats, 
+                           by = c("white_pct", "nonwhite_pct", 
+                                  "less_college_pct", "college_more_pct", 
+                                  "avg_pop", "avg_income")) %>% 
+  mutate(Source = c("Top 25 Swing Counties", "All Counties")) %>% 
+  rename("White %" = white_pct, 
+         "Non-white %" = nonwhite_pct, 
+         "No College Degree %" = less_college_pct, 
+         "At Least College Degree %" = college_more_pct, 
+         "Average Population" = avg_pop, 
+         "Average Median Household Income" = avg_income) %>% 
+  relocate("Source", .before = "White %")
 
 ```
 
 ```{r models}
 
-countypres2012 <- countypres %>% 
+countypres12 <- countypres %>% 
   filter(year == 2012) %>% 
-  ungroup()
+  mutate(nonwhite_pct = black_pct + asian_pct + other_pct, 
+         less_college_pct = high_school_degree + college_no_degree, 
+         college_more_pct = bachelors_degree + grad_degree)
 
-countypres2016 <- countypres %>% 
+countypres16 <- countypres %>% 
   filter(year == 2016) %>% 
-  ungroup()
+  mutate(nonwhite_pct = black_pct + asian_pct + other_pct, 
+         less_college_pct = high_school_degree + college_no_degree, 
+         college_more_pct = bachelors_degree + grad_degree)
+
+stan_glm(data = countypres12, 
+         formula = rep_vs ~ nonwhite_pct, 
+         refresh = 0)
 
 ```
-

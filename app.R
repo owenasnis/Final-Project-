@@ -1,4 +1,5 @@
 library(shiny)
+library(shinythemes)
 library(tidyverse)
 library(tidycensus)
 library(usmap)
@@ -13,8 +14,9 @@ nhgis <- read_csv("raw_data/nhgis.csv") %>%
            raw_black = AF2ME003, 
            asian_pct = (AF2ME005 / AF2ME001) * 100,
            raw_asian = AF2ME005, 
-           other_pct = (AF2ME009 / AF2ME001) * 100,
-           raw_other = AF2ME009, 
+           other_pct = (AF2ME004 + + AF2ME006 + AF2ME007 + AF2ME008 / AF2ME001) 
+           * 100,
+           raw_other = AF2ME004 + + AF2ME006 + AF2ME007 + AF2ME008, 
            high_school_degree = ((AF4OE017 + AF4OE018) / AF4OE001) * 100,
            raw_high_school_degree = AF4OE017 + AF4OE018, 
            college_no_degree = ((AF4OE019 + AF4OE020) / AF4OE001) * 100,
@@ -90,52 +92,123 @@ dem_trend <- countypres %>%
 swings <- dem_trend %>% 
     arrange(dem_chg)
 
-swings_map <- swings %>% 
+swings_map_r <- swings %>% 
     select(FIPS, dem_chg) %>% 
+    filter(dem_chg < 0) %>% 
     rename(fips = FIPS, value = dem_chg)
 
+swings_map_d <- swings %>% 
+    select(FIPS, dem_chg) %>% 
+    filter(dem_chg > 0) %>% 
+    rename(fips = FIPS, value = dem_chg)
+
+demographics <- countypres %>% 
+    ungroup() %>% 
+    filter(year == 2016) %>% 
+    select(-year, -dem_vs, -rep_vs) 
+
+top_25_summary_stats <- swings %>% 
+    arrange(desc(abs(dem_chg))) %>% 
+    head(25) %>% 
+    left_join(demographics, by = "FIPS") %>% 
+    summarize(total_white = sum(raw_white), 
+              total_nonwhite = sum(raw_black + raw_asian + raw_other), 
+              total_less_college = sum(raw_high_school_degree + 
+                                           raw_college_no_degree), 
+              total_college_more = sum(raw_bachelors_degree + raw_grad_degree), 
+              total_population = sum(pop), 
+              avg_pop = mean(pop), 
+              avg_income = mean(median_household_income)) %>% 
+    mutate(white_pct = (total_white / total_population) * 100, 
+           nonwhite_pct = (total_nonwhite / total_population) * 100, 
+           less_college_pct = (total_less_college / total_population) * 100, 
+           college_more_pct = (total_college_more / total_population) * 100) %>%  
+    select(white_pct, nonwhite_pct, less_college_pct, college_more_pct, avg_pop, 
+           avg_income)
+
+summary_stats <- swings %>% 
+    left_join(demographics, by = "FIPS") %>% 
+    summarize(total_white = sum(raw_white), 
+              total_nonwhite = sum(raw_black + raw_asian + raw_other), 
+              total_less_college = sum(raw_high_school_degree + 
+                                           raw_college_no_degree), 
+              total_college_more = sum(raw_bachelors_degree + raw_grad_degree), 
+              total_population = sum(pop), 
+              avg_pop = mean(pop),
+              avg_income = mean(median_household_income)) %>% 
+    mutate(white_pct = (total_white / total_population) * 100, 
+           nonwhite_pct = (total_nonwhite / total_population) * 100, 
+           less_college_pct = (total_less_college / total_population) * 100, 
+           college_more_pct = (total_college_more / total_population) * 100) %>%  
+    select(white_pct, nonwhite_pct, less_college_pct, college_more_pct, avg_pop, 
+           avg_income)
+
 ui <- navbarPage(
-    "The Blue Wall: Wisconsin, Michigan and Pennslyvania in 2012 and 2016",  
-    tabPanel("Recent Results",
-             fluidPage(
-                 titlePanel("Election Results by County: President"),
-                 mainPanel(plotOutput("Results12"), 
-                           plotOutput("Results16"), 
-                           plotOutput("Swingmap")))),
-    tabPanel("About", 
-             titlePanel("About"),
-             h3("Background and Motivations"),
-             p("In 2012, Barack Obama won a second term as the 44th President 
-               of the United States by claiming the battleground states of 
-               Florida, Ohio, and Iowa. Four years later, Donald Trump defeated
-               Hillary Clinton in Florida, Ohio and Iowa. However, even with 
-               these critical battleground victories, Trump still falls 10 
-               electoral votes short. Wisconsin, Michigan and Pennslyvania, 
-               also known as the Blue Wall, stood strong in 2012, but crumbled 
-               in 2016, giving Trump the White House. Therefore, in 
-               contemporary United States Presidential Elections, Wisconsin, 
-               Michigan and Pennsylvania represent the median states. In other 
-               words, the candidate who performs best in Wisconsin, Michigan and 
-               Pennslyvania, wins the electoral college. Just a few weeks ago in 
-               the 2020 election, Joe Biden defeated Donald Trump in all three 
-               states and was elected the 46th President of the United States. 
-               However, data is not completely availible yet for the 2020 
-               election. Soon, a similar analysis can be done for the 2016 and 
-               2020 elections, but for now, this analysis focuses on the 2012
-               and 2016 elections. Given the importance of these three major 
-               battlegrounds, it's important to ask: Why did these states vote 
-               the way they did and which demographic categories are the 
-               strongest predictors? I try my best to answer this question in my
-               project."),
+    "The Blue Wall: How Wisconsin, Michigan and Pennsylvania Decide Elections",
+    tabPanel("About the Project",
+             h3("The State of Wisconsin (10 Electoral Votes)"),
+             p("In 2012, President Barack Obama defeated Mitt Romney in 
+               Wisconsin by 205,204 votes (roughly 6.7%), claiming the state's 
+               10 electoral votes. However, four years later, Donald Trump 
+               defeated Hillary Clinton in Wisconsin by 22,748 votes(roughly 
+               0.7%). In four years, Wisconsin's electorate swung by 227,952 
+               votes."),
+             h3("The State of Michigan (16 Electoral Votes)"), 
+             p("In 2012, President Obama defeated Romney in Michigan by 449,238 
+               votes (roughly 9.5%), claiming the state's 16 electoral votes. 
+               Four years later, Trump defeated Clinton in Michigan by 10,704 
+               votes (roughly 0.3%). In four years, Michigan's electorate swung 
+               by 459,942 votes."),
+             h3("The Commonwealth of Pennsylvania (20 Electoral Votes)"), 
+             p("In 2012, President Obama defeated Romney in Pennsylvania by 
+               287,865 votes (roughly 5.2%). claiming the commonwealth's 20 
+               electoral votes. Four years later, Trump defeated Clinton in 
+               Pennsylvania by 44,292 votes (roughly 0.7%). In four years, 
+               Pennsylvania's electorate swung by 332,157 votes."), 
+             h3("The Project: Motivation and Summary"), 
+             p("Wisconsin, Michigan and Pennsylvania have 46 votes in the 
+               electoral college, and since 1988, these states have voted for 
+               the same presidential candidate. Therefore, these three 
+               battleground states swing the electoral college by 92 votes, 
+               which in recent elections has decided the presidential election. 
+               Considering how influential these three battleground states are, 
+               it's important to understand voting tendencies in these states. A 
+               few weeks ago, Wisconsin, Michigan and Pennsylvania voted 
+               together again for Joseph R. Biden Jr., making the 
+               Pennsylvania-born Democrat the 46th President of the United 
+               States. However, comprehensive data is not yet availible for the 
+               2020 Election. Therefore, in this project, results from the 2012 
+               and 2016 elections are studied. From 2012 to 2016, the electorate 
+               in Wisconsin, Michigan and Pennsylvania swung by 1,020,051 votes 
+               towards Republicans, awarding Donald Trump all 46 electoral votes 
+               and the presidency. In order to understand this drastic swing, I 
+               study how parts of the electorate changed preference between 
+               election cycles, specifically the major demographic categories of 
+               race, education attainment, monthly income and population within 
+               counties."), 
              h3("About Me"),
              p("My name is Owen Asnis and I am an A.B. candidate in Government 
                on the Public Policy track at Harvard College (class of 2023). 
                You can reach me at owenasnis@gmail.com or 
-               oasnis@college.harvard.edu.")))
-
+               oasnis@college.harvard.edu.")),  
+    tabPanel("'12 and '16 Results: President",
+             fluidPage(
+                 titlePanel("Recent Results: President"),
+                 mainPanel(plotOutput("results12"),
+                           plotOutput("results16")))), 
+    tabPanel("What Changed?", 
+             fluidPage(
+                 titlePanel("2012 versus 2016: Swing Counties"), 
+                 mainPanel(plotOutput("trend"), 
+                           plotOutput("rpickup"), 
+                           plotOutput("dpickup")))), 
+    tabPanel("Models and Stats", 
+             fluidPage(
+                 titlePanel("Model: Major Demographics and Vote Share"), 
+                 mainPanel(tableOutput("compare")))))
 
 server <- function(input, output) {
-    output$Results12 <- renderPlot({
+    output$results12 <- renderPlot({
         plot_usmap(include = c("WI", "MI", "PA"), 
                    regions = "counties", 
                    data = e2012, 
@@ -146,12 +219,12 @@ server <- function(input, output) {
                                  high = "darkblue", 
                                  midpoint = 50, 
                                  breaks = c(25, 50, 75), 
-                                 labels = c("+25% R", "E", "+25% D")) + 
+                                 labels = c("+25% Romney", "E", "+25% Obama")) + 
             labs(title = "2012 Presidential Election Results By County", 
                  subtitle = "Barack Obama wins all 46 electoral votes", 
                  caption = "Source: MIT Election Lab") 
     })
-    output$Results16 <- renderPlot({
+    output$results16 <- renderPlot({
         plot_usmap(include = c("WI", "MI", "PA"), 
                    regions = "counties", 
                    data = e2016, 
@@ -162,27 +235,76 @@ server <- function(input, output) {
                                  high = "darkblue", 
                                  midpoint = 50, 
                                  breaks = c(25, 50, 75), 
-                                 labels = c("+25% R", "E", "+25% D")) + 
+                                 labels = c("+25% Trump", "E", "+25% Clinton")) + 
             labs(title = "2016 Presidential Election Results By County", 
                  subtitle = "Donald Trump wins all 46 electoral votes", 
                  caption = "Source: MIT Election Lab") 
     })
-    output$Swingmap <- renderPlot({
+    output$trend <- renderPlot({
+        dem_trend %>% 
+            mutate(state = case_when(str_sub(FIPS, 1, 2) == 26 ~ "Michigan", 
+                                     str_sub(FIPS, 1, 2) == 42 ~ "Pennsylvania", 
+                                     str_sub(FIPS, 1, 2) == 55 ~ "Wisconsin")) %>%
+            ggplot(aes(x = dem_chg, fill = state)) + 
+            geom_density(alpha = 0.75) + 
+            scale_x_continuous(breaks = c(-30, -20, -10, 0, 10), 
+                               labels = c("+30% R", "+20% R", "+10% R", 
+                                          "Even", "+10% D")) + 
+            scale_fill_manual(breaks = c("Michigan", "Pennsylvania", "Wisconsin"), 
+                              values = c("darkgreen", "midnightblue", "red3"), 
+                              name = "County State") +
+            labs(title = "Vote Share Change from 2012 to 2016", 
+                 subtitle = "Republicans gain in nearly all MI, PA and WI counties", 
+                 x = "Vote Share Change", 
+                 y = "Percentage of Counties") + 
+            theme_minimal() + 
+            scale_y_continuous(labels = scales::percent_format())
+    })
+    output$rpickup <- renderPlot({
         plot_usmap(include = c("WI", "MI", "PA"), 
                    regions = "counties", 
-                   data = swings_map, 
+                   data = swings_map_r, 
                    values = "value") + 
             scale_fill_gradient2(name = "Swing", 
                                  low = "red1",
                                  mid = "white",
                                  high = "darkblue", 
                                  midpoint = 0, 
-                                 breaks = c(10, 0, -10, -20, -30), 
-                                 labels = c("+10% D", "Even", "+10% R", 
-                                            "+20% R", "+30% R")) + 
-            labs(title = "2016 Change From 2012", 
-                 subtitle = "Republicans gain in rural areas, while Democrats fail to grow lead in urban centers", 
+                                 breaks = c(0, -10, -20, -30), 
+                                 labels = c("Even", "+10% R", "+20% R", "+30% R")) + 
+            labs(title = "Counties Where Republicans Outperformed 2012", 
+                 subtitle = "Huge rural gains, and minor gains in urban centers", 
                  caption = "Source: MIT Election Lab")
+    })
+    output$dpickup <- renderPlot({
+        plot_usmap(include = c("WI", "MI", "PA"), 
+                   regions = "counties", 
+                   data = swings_map_d, 
+                   values = "value") + 
+            scale_fill_gradient2(name = "Swing", 
+                                 low = "red1",
+                                 mid = "white",
+                                 high = "darkblue", 
+                                 midpoint = 0, 
+                                 breaks = c(0, 10), 
+                                 labels = c("Even", "+10% D")) + 
+            labs(title = "Counties Where Democrats Outperformed 2012", 
+                 subtitle = "Minor suburban gains, but failure in rural areas and urban centers", 
+                 caption = "Source: MIT Election Lab")
+    })
+    output$compare <- renderTable({
+        full_join(top_25_summary_stats, summary_stats, 
+                  by = c("white_pct", "nonwhite_pct", 
+                         "less_college_pct", "college_more_pct", 
+                         "avg_pop", "avg_income")) %>% 
+            mutate(Source = c("Top 25 Swing Counties", "All Counties")) %>% 
+            rename("White %" = white_pct, 
+                   "Non-white %" = nonwhite_pct, 
+                   "No College Degree %" = less_college_pct, 
+                   "At Least College Degree %" = college_more_pct, 
+                   "Average Population" = avg_pop, 
+                   "Average Median Household Income" = avg_income) %>% 
+            relocate("Source", .before = "White %")
     })
 }
 
