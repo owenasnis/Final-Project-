@@ -54,7 +54,8 @@ countypres <- read_csv("raw_data/countypres_2000-2016.csv",
          rep_vs = if_else(year == 2012, Romney, Trump)) %>% 
   select(- Obama, - Clinton, - Romney, - Trump) %>% 
   left_join(nhgis, by = "FIPS") %>% 
-  left_join(nhgis_pop, by = "FIPS")
+  left_join(nhgis_pop, by = "FIPS") %>% 
+  left_join(county_names, by = "FIPS")
 
 ```
 
@@ -90,6 +91,24 @@ nhgis_pop <- read_csv("raw_data/pop.csv") %>%
   mutate(FIPS = paste0(STATEA, COUNTYA), 
          pop = AF2LE001) %>% 
   select(FIPS, pop)
+
+county_names <- read_csv("raw_data/countypres_2000-2016.csv", 
+                       col_types = cols(year = col_double(),
+                                        state = col_character(),
+                                        state_po = col_character(),
+                                        county = col_character(),
+                                        FIPS = col_character(),
+                                        office = col_character(),
+                                        candidate = col_character(),
+                                        party = col_character(),
+                                        candidatevotes = col_double(),
+                                        totalvotes = col_double(),
+                                        version = col_double())) %>%
+  filter(year == 2012, 
+         party == "democrat") %>% 
+  select(FIPS, county, state_po) %>% 
+  mutate(county = paste(county, "County", state_po)) %>% 
+  select(FIPS, county)
     
 ```
 
@@ -340,6 +359,38 @@ ggplotly(ggplot(data = map16, aes(geometry = geometry,
            scale_fill_manual(values = c("deepskyblue", "red1")),
            tooltip = c("text")) %>%
            layout(showlegend = FALSE)
-          
+
+```
+
+```{r mapnewtry}
+
+map12_try <- countypres12 %>% 
+  ungroup() %>% 
+  select(FIPS, dem_vs, rep_vs, county) %>% 
+  rename(fips = FIPS) %>% 
+  mutate(difference = dem_vs - rep_vs) %>% 
+  left_join(rustbelt_geometry, by = "fips")
+
+map <- plot_usmap(include = c("WI", "MI", "PA"), 
+           regions = "counties",
+           data = map12_try,
+           values = "difference") +
+           scale_fill_gradient2(name = "Vote Share", 
+                       low = "red1",
+                       mid = "white",
+                       high = "darkblue", 
+                       midpoint = 0, 
+                       breaks = c(-50, -25, 0, 25, 50), 
+                       labels = c("+50% R", "+25% R", "E", "+25% D", "+50% D")) + 
+           labs(title = "2012 Presidential Election Results By County")
+
+style(map, text = paste("RESULTS: PRESIDENT", "<br>", 
+                        "Barack H. Obama (D - inc):", "<br>", 
+                        "Mitt Romney (R):"))
+
+#aes(text = paste(map12_try$county, "<br>", 
+                        #"Barack H. Obama (D - inc.):", map12_try$dem_vs, "<br>", 
+                        #"Mitt Romney (R):", map12_try$rep_vs)
+
 ```
 

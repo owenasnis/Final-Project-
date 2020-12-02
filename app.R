@@ -8,6 +8,7 @@ library(gtsummary)
 library(plotly)
 library(tidycensus)
 library(sf)
+library(ggthemes)
 
 nhgis <- read_csv("raw_data/nhgis.csv") %>% 
     mutate(FIPS = paste0(STATEA, COUNTYA), 
