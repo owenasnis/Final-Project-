@@ -368,8 +368,7 @@ map12_try <- countypres12 %>%
   ungroup() %>% 
   select(FIPS, dem_vs, rep_vs, county) %>% 
   rename(fips = FIPS) %>% 
-  mutate(difference = dem_vs - rep_vs) %>% 
-  left_join(rustbelt_geometry, by = "fips")
+  mutate(difference = dem_vs - rep_vs) 
 
 map <- plot_usmap(include = c("WI", "MI", "PA"), 
            regions = "counties",
