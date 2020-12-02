@@ -13,6 +13,11 @@ library(tidycensus)
 library(usmap)
 library(rstanarm)
 library(gtsummary)
+library(plotly)
+library(ggthemes)
+library(tidycensus)
+census_api_key("19ea08aa1b10f210a3a218b15486e5a38506a4cf", install = TRUE, overwrite = TRUE)
+library(sf)
 
 ```
 
@@ -285,3 +290,56 @@ stan_glm(data = countypres12,
          refresh = 0)
 
 ```
+
+```{r plotly}
+
+rustbelt_geometry <- get_acs(geography = "county", 
+                             state = c(26, 42, 55), 
+                             geometry = TRUE, 
+                             variables = "B19013_001") %>% 
+  select(geometry, GEOID, NAME) %>% 
+  rename(fips = GEOID)
+
+map12 <- countypres12 %>%
+  ungroup() %>% 
+  select(FIPS, dem_vs, rep_vs) %>% 
+  rename(fips = FIPS) %>% 
+  mutate(difference = dem_vs - rep_vs) %>% 
+  left_join(rustbelt_geometry, by = "fips") %>% 
+  mutate(dem_vs = round(dem_vs, digits = 1), 
+         rep_vs = round(rep_vs, digits = 1))
+
+map16 <- countypres16 %>% 
+  ungroup() %>% 
+  select(FIPS, dem_vs, rep_vs) %>% 
+  rename(fips = FIPS) %>% 
+  mutate(difference = dem_vs - rep_vs) %>% 
+  left_join(rustbelt_geometry, by = "fips") %>% 
+  mutate(dem_vs = round(dem_vs, digits = 1), 
+         rep_vs = round(rep_vs, digits = 1))
+  
+
+ggplotly(ggplot(data = map12, aes(geometry = geometry, 
+                                  text = paste(NAME, "<br>",
+                                               "Barack H. Obama (D):", dem_vs, "%", "<br>", 
+                                               "Mitt Romney (R):", rep_vs, "%"))) +
+           geom_sf(aes(fill = difference < 0),
+                   show.legend = FALSE) + 
+           theme_map() + 
+           scale_fill_manual(values = c("deepskyblue", "red1")),
+           tooltip = c("text")) %>%
+           layout(showlegend = FALSE)
+
+ggplotly(ggplot(data = map16, aes(geometry = geometry, 
+                                  text = paste(NAME, "<br>",
+                                               "Hillary R. Clinton (D):", dem_vs, "%", "<br>", 
+                                               "Donald J. Trump (R):", rep_vs, "%"))) +
+           geom_sf(aes(fill = difference < 0),
+                   show.legend = FALSE) + 
+           theme_map() + 
+           scale_fill_manual(values = c("deepskyblue", "red1")),
+           tooltip = c("text")) %>%
+           layout(showlegend = FALSE)
+          
+```
+

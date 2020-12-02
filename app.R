@@ -6,6 +6,8 @@ library(usmap)
 library(rstanarm)
 library(gtsummary)
 library(plotly)
+library(tidycensus)
+library(sf)
 
 nhgis <- read_csv("raw_data/nhgis.csv") %>% 
     mutate(FIPS = paste0(STATEA, COUNTYA), 
@@ -71,18 +73,6 @@ countypres <- read_csv("raw_data/countypres_2000-2016.csv",
     left_join(nhgis, by = "FIPS") %>% 
     left_join(nhgis_pop, by = "FIPS")
 
-e2012 <- countypres %>% 
-    filter(year == 2012) %>% 
-    ungroup() %>% 
-    select(FIPS, "dem_vs") %>% 
-    rename(fips = FIPS, value = dem_vs)
-
-e2016 <- countypres %>% 
-    filter(year == 2016) %>% 
-    ungroup() %>% 
-    select(FIPS, "dem_vs") %>%
-    rename(fips = FIPS, value = dem_vs)
-
 dem_trend <- countypres %>%
     mutate(dem_diff = dem_vs - rep_vs) %>%  
     select(FIPS, year, dem_diff) %>% 
@@ -144,6 +134,43 @@ summary_stats <- swings %>%
     select(white_pct, nonwhite_pct, less_college_pct, college_more_pct, avg_pop, 
            avg_income)
 
+countypres12 <- countypres %>% 
+    filter(year == 2012) %>% 
+    mutate(nonwhite_pct = black_pct + asian_pct + other_pct, 
+           less_college_pct = high_school_degree + college_no_degree, 
+           college_more_pct = bachelors_degree + grad_degree)
+
+countypres16 <- countypres %>% 
+    filter(year == 2016) %>% 
+    mutate(nonwhite_pct = black_pct + asian_pct + other_pct, 
+           less_college_pct = high_school_degree + college_no_degree, 
+           college_more_pct = bachelors_degree + grad_degree)
+
+rustbelt_geometry <- get_acs(geography = "county", 
+                             state = c(26, 42, 55), 
+                             geometry = TRUE, 
+                             variables = "B19013_001") %>% 
+    select(geometry, GEOID, NAME) %>% 
+    rename(fips = GEOID)
+
+map12 <- countypres12 %>%
+    ungroup() %>% 
+    select(FIPS, dem_vs, rep_vs) %>% 
+    rename(fips = FIPS) %>% 
+    mutate(difference = dem_vs - rep_vs) %>% 
+    left_join(rustbelt_geometry, by = "fips") %>% 
+    mutate(dem_vs = round(dem_vs, digits = 1), 
+           rep_vs = round(rep_vs, digits = 1))
+
+map16 <- countypres16 %>% 
+    ungroup() %>% 
+    select(FIPS, dem_vs, rep_vs) %>% 
+    rename(fips = FIPS) %>% 
+    mutate(difference = dem_vs - rep_vs) %>% 
+    left_join(rustbelt_geometry, by = "fips") %>% 
+    mutate(dem_vs = round(dem_vs, digits = 1), 
+           rep_vs = round(rep_vs, digits = 1))
+
 ui <- navbarPage(
     "The Blue Wall: How Wisconsin, Michigan and Pennsylvania Decide Elections",
     theme = shinytheme("sandstone"), 
@@ -199,10 +226,10 @@ ui <- navbarPage(
                  sidebarLayout(
                      sidebarPanel(
                          selectInput("select",
-                                     "Number of observations:", 
+                                     "Election Year:", 
                                      choices = list("2012", "2016"))),
-                    mainPanel(
-                         plotOutput("results"))))), 
+                     mainPanel(
+                         plotlyOutput("results", width = "100%"))))), 
     tabPanel("What Changed?", 
              fluidPage(
                  titlePanel("2012 versus 2016: Swing Counties"), 
@@ -215,38 +242,32 @@ ui <- navbarPage(
                  mainPanel(tableOutput("compare")))))
 
 server <- function(input, output) {
-    output$results <- renderPlot({
+    output$results <- renderPlotly({
         if(input$select == "2012"){
-            (plot_usmap(include = c("WI", "MI", "PA"), 
-                       regions = "counties", 
-                       data = e2012, 
-                       values = "value") + 
-                scale_fill_gradient2(name = "Vote Share", 
-                                     low = "red1",
-                                     mid = "white",
-                                     high = "darkblue", 
-                                     midpoint = 50, 
-                                     breaks = c(25, 50, 75), 
-                                     labels = c("+25% Romney", "E", "+25% Obama")) + 
-                labs(title = "2012 Presidential Election Results By County", 
-                     subtitle = "Barack Obama wins all 46 electoral votes", 
-                     caption = "Source: MIT Election Lab"))   
+            ggplotly(ggplot(data = map12, 
+                            aes(geometry = geometry, 
+                                text = paste(NAME, "<br>",
+                                             "Barack H. Obama (D):", dem_vs, "%", "<br>", 
+                                             "Mitt Romney (R):", rep_vs, "%"))) +
+                         geom_sf(aes(fill = difference < 0),
+                                 show.legend = FALSE) + 
+                         theme_map() + 
+                         scale_fill_manual(values = c("deepskyblue", "red1")),
+                     tooltip = c("text")) %>%
+                layout(showlegend = FALSE) 
         }
         else if(input$select == "2016"){
-            plot_usmap(include = c("WI", "MI", "PA"), 
-                       regions = "counties", 
-                       data = e2016, 
-                       values = "value") + 
-                scale_fill_gradient2(name = "Vote Share", 
-                                     low = "red1",
-                                     mid = "white",
-                                     high = "darkblue", 
-                                     midpoint = 50, 
-                                     breaks = c(25, 50, 75), 
-                                     labels = c("+25% Trump", "E", "+25% Clinton")) + 
-                labs(title = "2016 Presidential Election Results By County", 
-                     subtitle = "Donald Trump wins all 46 electoral votes", 
-                     caption = "Source: MIT Election Lab")    
+            ggplotly(ggplot(data = map16, 
+                            aes(geometry = geometry, 
+                                text = paste(NAME, "<br>",
+                                             "Hillary R. Clinton (D):", dem_vs, "%", "<br>", 
+                                             "Donald J. Trump (R):", rep_vs, "%"))) +
+                         geom_sf(aes(fill = difference < 0),
+                                 show.legend = FALSE) + 
+                         theme_map() + 
+                         scale_fill_manual(values = c("deepskyblue", "red1")),
+                     tooltip = c("text")) %>%
+                layout(showlegend = FALSE)  
         }
     })
     output$trend <- renderPlot({
