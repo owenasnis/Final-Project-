@@ -128,7 +128,7 @@ plot_usmap(include = c("WI", "MI", "PA"),
                        midpoint = 50, 
                        breaks = c(25, 50, 75), 
                        labels = c("+25% R", "E", "+25% D")) + 
-  labs(title = "2016 Presidential Election Results By County") 
+  labs(title = "2016 Presidential Election Results By County")
 
 ```
 

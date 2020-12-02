@@ -5,6 +5,7 @@ library(tidycensus)
 library(usmap)
 library(rstanarm)
 library(gtsummary)
+library(plotly)
 
 nhgis <- read_csv("raw_data/nhgis.csv") %>% 
     mutate(FIPS = paste0(STATEA, COUNTYA), 
@@ -145,6 +146,7 @@ summary_stats <- swings %>%
 
 ui <- navbarPage(
     "The Blue Wall: How Wisconsin, Michigan and Pennsylvania Decide Elections",
+    theme = shinytheme("sandstone"), 
     tabPanel("About the Project",
              h3("The State of Wisconsin (10 Electoral Votes)"),
              p("In 2012, President Barack Obama defeated Mitt Romney in 
@@ -191,11 +193,16 @@ ui <- navbarPage(
                on the Public Policy track at Harvard College (class of 2023). 
                You can reach me at owenasnis@gmail.com or 
                oasnis@college.harvard.edu.")),  
-    tabPanel("'12 and '16 Results: President",
+    tabPanel("Results: President", 
              fluidPage(
-                 titlePanel("Recent Results: President"),
-                 mainPanel(plotOutput("results12"),
-                           plotOutput("results16")))), 
+                 titlePanel("Recent Results: President"), 
+                 sidebarLayout(
+                     sidebarPanel(
+                         selectInput("select",
+                                     "Number of observations:", 
+                                     choices = list("2012", "2016"))),
+                    mainPanel(
+                         plotOutput("results"))))), 
     tabPanel("What Changed?", 
              fluidPage(
                  titlePanel("2012 versus 2016: Swing Counties"), 
@@ -208,37 +215,39 @@ ui <- navbarPage(
                  mainPanel(tableOutput("compare")))))
 
 server <- function(input, output) {
-    output$results12 <- renderPlot({
-        plot_usmap(include = c("WI", "MI", "PA"), 
-                   regions = "counties", 
-                   data = e2012, 
-                   values = "value") + 
-            scale_fill_gradient2(name = "Vote Share", 
-                                 low = "red1",
-                                 mid = "white",
-                                 high = "darkblue", 
-                                 midpoint = 50, 
-                                 breaks = c(25, 50, 75), 
-                                 labels = c("+25% Romney", "E", "+25% Obama")) + 
-            labs(title = "2012 Presidential Election Results By County", 
-                 subtitle = "Barack Obama wins all 46 electoral votes", 
-                 caption = "Source: MIT Election Lab") 
-    })
-    output$results16 <- renderPlot({
-        plot_usmap(include = c("WI", "MI", "PA"), 
-                   regions = "counties", 
-                   data = e2016, 
-                   values = "value") + 
-            scale_fill_gradient2(name = "Vote Share", 
-                                 low = "red1",
-                                 mid = "white",
-                                 high = "darkblue", 
-                                 midpoint = 50, 
-                                 breaks = c(25, 50, 75), 
-                                 labels = c("+25% Trump", "E", "+25% Clinton")) + 
-            labs(title = "2016 Presidential Election Results By County", 
-                 subtitle = "Donald Trump wins all 46 electoral votes", 
-                 caption = "Source: MIT Election Lab") 
+    output$results <- renderPlot({
+        if(input$select == "2012"){
+            (plot_usmap(include = c("WI", "MI", "PA"), 
+                       regions = "counties", 
+                       data = e2012, 
+                       values = "value") + 
+                scale_fill_gradient2(name = "Vote Share", 
+                                     low = "red1",
+                                     mid = "white",
+                                     high = "darkblue", 
+                                     midpoint = 50, 
+                                     breaks = c(25, 50, 75), 
+                                     labels = c("+25% Romney", "E", "+25% Obama")) + 
+                labs(title = "2012 Presidential Election Results By County", 
+                     subtitle = "Barack Obama wins all 46 electoral votes", 
+                     caption = "Source: MIT Election Lab"))   
+        }
+        else if(input$select == "2016"){
+            plot_usmap(include = c("WI", "MI", "PA"), 
+                       regions = "counties", 
+                       data = e2016, 
+                       values = "value") + 
+                scale_fill_gradient2(name = "Vote Share", 
+                                     low = "red1",
+                                     mid = "white",
+                                     high = "darkblue", 
+                                     midpoint = 50, 
+                                     breaks = c(25, 50, 75), 
+                                     labels = c("+25% Trump", "E", "+25% Clinton")) + 
+                labs(title = "2016 Presidential Election Results By County", 
+                     subtitle = "Donald Trump wins all 46 electoral votes", 
+                     caption = "Source: MIT Election Lab")    
+        }
     })
     output$trend <- renderPlot({
         dem_trend %>% 
