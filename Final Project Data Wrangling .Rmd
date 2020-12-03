@@ -304,23 +304,31 @@ countypres16 <- countypres %>%
          less_college_pct = high_school_degree + college_no_degree, 
          college_more_pct = bachelors_degree + grad_degree)
 
-white_12 <- stan_glm(data = countypres12, 
-         formula = rep_vs ~ white_pct, 
-         refresh = 0) %>% 
+post_12 <- countypres12 %>%
+  ungroup() %>% 
+  select(rep_vs, nonwhite_pct) %>% 
+  rename(select_variable = nonwhite_pct) %>% 
+  stan_glm(formula = rep_vs ~ select_variable, 
+         refresh = 0, 
+         family = gaussian()) %>% 
   as_tibble() %>% 
-  select(white_pct) %>% 
+  select(select_variable) %>% 
   mutate(year = "2012")
 
-white_16 <- stan_glm(data = countypres16, 
-         formula = rep_vs ~ white_pct, 
-         refresh = 0) %>% 
+post_16 <- countypres16 %>%
+  ungroup() %>% 
+  select(rep_vs, nonwhite_pct) %>% 
+  rename(select_variable = nonwhite_pct) %>% 
+  stan_glm(formula = rep_vs ~ select_variable, 
+         refresh = 0, 
+         family = gaussian()) %>% 
   as_tibble() %>% 
-  select(white_pct) %>% 
+  select(select_variable) %>% 
   mutate(year = "2016")
 
-white_predictions <- bind_rows(white_12, white_16)
+post_predictions <- bind_rows(post_12, post_16)
 
-ggplot(data = white_predictions, aes(x = white_pct, fill = year)) + 
+ggplot(data = post_predictions, aes(x = select_variable, fill = year)) + 
   geom_histogram(aes(y = after_stat(count / sum(count))), 
                  alpha = 0.65, 
                  bins = 100, 

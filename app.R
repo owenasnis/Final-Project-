@@ -18,9 +18,9 @@ nhgis <- read_csv("raw_data/nhgis.csv") %>%
            raw_black = AF2ME003, 
            asian_pct = (AF2ME005 / AF2ME001) * 100,
            raw_asian = AF2ME005, 
-           other_pct = (AF2ME004 + + AF2ME006 + AF2ME007 + AF2ME008 / AF2ME001) 
+           other_pct = ((AF2ME004 + AF2ME006 + AF2ME007 + AF2ME008) / AF2ME001) 
            * 100,
-           raw_other = AF2ME004 + + AF2ME006 + AF2ME007 + AF2ME008, 
+           raw_other = AF2ME004 + AF2ME006 + AF2ME007 + AF2ME008, 
            high_school_degree = ((AF4OE017 + AF4OE018) / AF4OE001) * 100,
            raw_high_school_degree = AF4OE017 + AF4OE018, 
            college_no_degree = ((AF4OE019 + AF4OE020) / AF4OE001) * 100,
@@ -72,7 +72,8 @@ countypres <- read_csv("raw_data/countypres_2000-2016.csv",
            rep_vs = if_else(year == 2012, Romney, Trump)) %>% 
     select(- Obama, - Clinton, - Romney, - Trump) %>% 
     left_join(nhgis, by = "FIPS") %>% 
-    left_join(nhgis_pop, by = "FIPS")
+    left_join(nhgis_pop, by = "FIPS") %>% 
+    left_join(county_names, by = "FIPS")
 
 countypres12 <- countypres %>% 
     filter(year == 2012) %>% 
@@ -219,7 +220,16 @@ ui <- navbarPage(
     tabPanel("Models", 
              fluidPage(
                  titlePanel("Model: Major Demographics and Vote Share"), 
-                 mainPanel(tableOutput("compare")))))
+                 sidebarLayout(
+                     sidebarPanel(
+                         selectInput("variable", 
+                                     "Select Variable to Run Regression Model:", 
+                                     choices = list("white_pct", 
+                                                    "nonwhite_pct", 
+                                                    "less_college_pct", 
+                                                    "college_more_pct"))), 
+                     mainPanel(
+                         plotOutput("pp"))))))
 
 server <- function(input, output) {
     output$results <- renderPlotly({
@@ -298,11 +308,50 @@ server <- function(input, output) {
                  x = "Vote Share Change", 
                  y = "Number of Couties Selected State", 
                  subtitle = "Most counties swing towards Republicans") + 
-            theme_clean() +  
+            theme_economist() +  
             geom_vline(xintercept = 0, 
                        alpha = 0.5, 
                        color = "purple", 
                        )
+    })
+    output$pp <- renderPlot({
+        post_12 <- countypres12 %>%
+            ungroup() %>% 
+            select(rep_vs, input$variable) %>% 
+            rename(select_variable = input$variable) %>% 
+            stan_glm(formula = rep_vs ~ select_variable, 
+                     refresh = 0, 
+                     family = gaussian()) %>% 
+            as_tibble() %>% 
+            select(select_variable) %>% 
+            mutate(year = "2012")
+        
+        post_16 <- countypres16 %>%
+            ungroup() %>% 
+            select(rep_vs, input$variable) %>% 
+            rename(select_variable = input$variable) %>% 
+            stan_glm(formula = rep_vs ~ select_variable, 
+                     refresh = 0, 
+                     family = gaussian()) %>% 
+            as_tibble() %>% 
+            select(select_variable) %>% 
+            mutate(year = "2016")
+        
+        post_predictions <- bind_rows(post_12, post_16)
+        
+        ggplot(data = post_predictions, aes(x = select_variable, fill = year)) + 
+            geom_histogram(aes(y = after_stat(count / sum(count))), 
+                           alpha = 0.65, 
+                           bins = 100, 
+                           color = "white", 
+                           position = "identity") + 
+            scale_y_continuous(labels = scales::percent_format()) + 
+            labs(title = "Posterior Probability Distribution", 
+                 y = "Probability", 
+                 x = "Predicted % influence on Republican vote share") + 
+            theme_economist() + 
+            scale_fill_manual(name = "Election Year", 
+                              values = c("royalblue", "gold1"))
     })
 }
 
