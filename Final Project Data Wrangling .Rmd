@@ -304,10 +304,34 @@ countypres16 <- countypres %>%
          less_college_pct = high_school_degree + college_no_degree, 
          college_more_pct = bachelors_degree + grad_degree)
 
-stan_glm(data = countypres12, 
-         formula = rep_vs ~ nonwhite_pct, 
-         refresh = 0)
+white_12 <- stan_glm(data = countypres12, 
+         formula = rep_vs ~ white_pct, 
+         refresh = 0) %>% 
+  as_tibble() %>% 
+  select(white_pct) %>% 
+  mutate(year = "2012")
 
+white_16 <- stan_glm(data = countypres16, 
+         formula = rep_vs ~ white_pct, 
+         refresh = 0) %>% 
+  as_tibble() %>% 
+  select(white_pct) %>% 
+  mutate(year = "2016")
+
+white_predictions <- bind_rows(white_12, white_16)
+
+ggplot(data = white_predictions, aes(x = white_pct, fill = year)) + 
+  geom_histogram(aes(y = after_stat(count / sum(count))), 
+                 alpha = 0.65, 
+                 bins = 100, 
+                 color = "white", 
+                 position = "identity") + 
+  scale_y_continuous(labels = scales::percent_format()) + 
+  labs(title = "Posterior Probability Distribution", 
+       y = "Probability") + 
+  theme_economist() + 
+  scale_fill_manual(name = "Election Year", 
+                    values = c("royalblue", "gold1"))
 ```
 
 ```{r plotly}
@@ -321,21 +345,34 @@ rustbelt_geometry <- get_acs(geography = "county",
 
 map12 <- countypres12 %>%
   ungroup() %>% 
-  select(FIPS, dem_vs, rep_vs) %>% 
+  select(FIPS, dem_vs, rep_vs) %>%
+  left_join(nhgis_pop, by = "FIPS") %>% 
   rename(fips = FIPS) %>% 
   mutate(difference = dem_vs - rep_vs) %>% 
   left_join(rustbelt_geometry, by = "fips") %>% 
   mutate(dem_vs = round(dem_vs, digits = 1), 
-         rep_vs = round(rep_vs, digits = 1))
+         rep_vs = round(rep_vs, digits = 1), 
+         state = case_when(str_sub(fips, 1, 2) == 26 ~ "Michigan", 
+                           str_sub(fips, 1, 2) == 42 ~ "Pennsylvania", 
+                           str_sub(fips, 1, 2) == 55 ~ "Wisconsin")) %>%   
+  group_by(state) %>% 
+  mutate(pop_rank = rank(desc(pop)), 
+         total_counties = n())
 
 map16 <- countypres16 %>% 
   ungroup() %>% 
-  select(FIPS, dem_vs, rep_vs) %>% 
+  select(FIPS, dem_vs, rep_vs) %>%
+  left_join(nhgis_pop, by = "FIPS") %>% 
   rename(fips = FIPS) %>% 
   mutate(difference = dem_vs - rep_vs) %>% 
   left_join(rustbelt_geometry, by = "fips") %>% 
   mutate(dem_vs = round(dem_vs, digits = 1), 
-         rep_vs = round(rep_vs, digits = 1))
+         rep_vs = round(rep_vs, digits = 1), 
+         state = case_when(str_sub(fips, 1, 2) == 26 ~ "Michigan", 
+                           str_sub(fips, 1, 2) == 42 ~ "Pennsylvania", 
+                           str_sub(fips, 1, 2) == 55 ~ "Wisconsin")) %>%   
+  group_by(state) %>% 
+  mutate(pop_rank = rank(desc(pop)))
   
 
 ggplotly(ggplot(data = map12, aes(geometry = geometry, 
@@ -350,46 +387,88 @@ ggplotly(ggplot(data = map12, aes(geometry = geometry,
            layout(showlegend = FALSE)
 
 ggplotly(ggplot(data = map16, aes(geometry = geometry, 
-                                  text = paste(NAME, "<br>",
+                                  text = paste("2016 RESULTS: PRESIDENT", "<br>", 
+                                               NAME, "<br>",
                                                "Hillary R. Clinton (D):", dem_vs, "%", "<br>", 
                                                "Donald J. Trump (R):", rep_vs, "%"))) +
-           geom_sf(aes(fill = difference < 0),
+           geom_sf(aes(fill = difference),
                    show.legend = FALSE) + 
            theme_map() + 
-           scale_fill_manual(values = c("deepskyblue", "red1")),
-           tooltip = c("text")) %>%
-           layout(showlegend = FALSE)
+           scale_fill_gradient2(name = "Vote Share", 
+                       low = "red2",
+                       mid = "white",
+                       high = "blue3", 
+                       midpoint = 0, 
+                       breaks = c(-50, -25, 0, 25, 50, 70), 
+                       labels = c("+50% R", "+25% R", "E", "+25% D", "+50% D", "+70% D")), 
+            tooltip = c("text")) %>%
+            layout(showlegend = FALSE)
 
 ```
 
-```{r mapnewtry}
+```{r swings}
 
-map12_try <- countypres12 %>% 
-  ungroup() %>% 
-  select(FIPS, dem_vs, rep_vs, county) %>% 
-  rename(fips = FIPS) %>% 
-  mutate(difference = dem_vs - rep_vs) 
+trend <- countypres %>%
+  mutate(dem_diff = dem_vs - rep_vs) %>%  
+  select(FIPS, year, dem_diff) %>%
+  group_by(FIPS) %>% 
+  summarize(dem_chg = diff(dem_diff), 
+            .groups = "drop") %>%
+  left_join(nhgis_pop, by = "FIPS") %>%
+  rename(fips = FIPS) %>%
+  left_join(rustbelt_geometry, by = "fips") %>% 
+  mutate(dem_chg = round(dem_chg, digits = 1)) %>% 
+  mutate(state = case_when(str_sub(fips, 1, 2) == 26 ~ "Michigan", 
+                           str_sub(fips, 1, 2) == 42 ~ "Pennsylvania", 
+                           str_sub(fips, 1, 2) == 55 ~ "Wisconsin")) %>%   
+  group_by(state) %>% 
+  mutate(pop_rank = rank(desc(pop)), 
+         total_counties = n(), 
+         winner = case_when(dem_chg > 0 ~ "D", 
+                            dem_chg < 0 ~ "R"))
 
-map <- plot_usmap(include = c("WI", "MI", "PA"), 
-           regions = "counties",
-           data = map12_try,
-           values = "difference") +
-           scale_fill_gradient2(name = "Vote Share", 
-                       low = "red1",
+ggplotly(ggplot(data = trend, aes(geometry = geometry, 
+                                  text = paste("COUNTY SWINGS", "<br>", 
+                                  NAME, "<br>", 
+                                  "Swing:", "+", abs(dem_chg), "%", 
+                                  case_when(dem_chg > 0 ~ "towards Democrats", 
+                                            dem_chg < 0 ~ "towards Republicans"), "<br>", 
+                                  "State Population Rank:", pop_rank, "of", total_counties))) + 
+           geom_sf(aes(fill = dem_chg), 
+                   show.legend = FALSE) + 
+           theme_map() +
+           labs(title = "County Swings (from 2012-2016)") + 
+           scale_fill_gradient2(name = "Swing", 
+                       low = "red2",
                        mid = "white",
-                       high = "darkblue", 
+                       high = "blue3", 
                        midpoint = 0, 
-                       breaks = c(-50, -25, 0, 25, 50), 
-                       labels = c("+50% R", "+25% R", "E", "+25% D", "+50% D")) + 
-           labs(title = "2012 Presidential Election Results By County")
+                       breaks = c(-25, 0, 25), 
+                       labels = c("+25% R", "SAME", "+25% D")), 
+         tooltip = c("text")) %>% 
+           layout(showlegend = FALSE)
+           
 
-style(map, text = paste("RESULTS: PRESIDENT", "<br>", 
-                        "Barack H. Obama (D - inc):", "<br>", 
-                        "Mitt Romney (R):"))
+```
 
-#aes(text = paste(map12_try$county, "<br>", 
-                        #"Barack H. Obama (D - inc.):", map12_try$dem_vs, "<br>", 
-                        #"Mitt Romney (R):", map12_try$rep_vs)
+```{r trend graphic}
 
+ggplot(data = trend, aes(x = dem_chg, fill = state)) + 
+  geom_density() + 
+  scale_x_continuous(breaks = c(-30, -20, -10, 0, 10), 
+                     labels = c("+30% R", "+20% R", "+10% R", 
+                                "Even", "+10% D")) + 
+  scale_fill_manual(breaks = c("Michigan", "Pennsylvania", "Wisconsin"), 
+                    values = c("darkgreen", "midnightblue", "red3"), 
+                    name = "County State") + 
+  labs(title = "County Swings", 
+       x = "Vote Share Change", 
+       y = "Percentage of Counties") + 
+  theme_minimal() + 
+  scale_y_continuous(labels = scales::percent_format()) + 
+  geom_vline(xintercept = 0, 
+             alpha = 0.5, 
+             color = "purple")
+  
 ```
 
