@@ -149,11 +149,11 @@ ui <- navbarPage(
     theme = shinytheme("sandstone"), 
     tabPanel("About the Project",
                  mainPanel(
-                     fluidRow(
+                     fixedRow(
                      column(4,
                      plotOutput("wimap")), 
                  column(4, 
-             h3("Wisconsin (10 Electoral Votes)"),
+             h3("Wisconsin (10 Electors)"),
              p("In 2012, President Barack Obama defeated Mitt Romney in 
                Wisconsin by 205,204 votes (roughly 6.7%), claiming the state's 
                10 electoral votes. However, four years later, Donald Trump 
@@ -161,12 +161,12 @@ ui <- navbarPage(
                0.7%). In four years, Wisconsin's electorate swung by 227,952 
                votes.")),
              column(4,
-             imageOutput("wiseal")))),
-             fluidRow(
+             imageOutput("wiseal"))),
+             fixedRow(
                  column(4, 
                         imageOutput("miseal")),
                  column(4, 
-             h3("Michigan (16 Electoral Votes)"), 
+             h3("Michigan (16 Electors)"), 
              p("In 2012, President Obama defeated Romney in Michigan by 449,238 
                votes (roughly 9.5%), claiming the state's 16 electoral votes. 
                Four years later, Trump defeated Clinton in Michigan by 10,704 
@@ -174,11 +174,11 @@ ui <- navbarPage(
                by 459,942 votes.")),
              column(4, 
                     plotOutput("mimap"))), 
-             fluidRow(
+             fixedRow(
                  column(4, 
                       plotOutput("pamap")),
              column(4,
-             h3("Pennsylvania (20 Electoral Votes)"), 
+             h3("Pennsylvania (20 Electors)"), 
              p("In 2012, President Obama defeated Romney in Pennsylvania by 
                287,865 votes (roughly 5.2%). claiming the commonwealth's 20 
                electoral votes. Four years later, Trump defeated Clinton in 
@@ -211,8 +211,8 @@ ui <- navbarPage(
              p("My name is Owen Asnis and I am an A.B. candidate in Government 
                on the Public Policy track at Harvard College (class of 2023). 
                You can reach me at owenasnis@gmail.com or 
-               oasnis@college.harvard.edu.")),  
-    tabPanel("Results: President", 
+               oasnis@college.harvard.edu."))),  
+    tabPanel("Results: President",
              fluidPage(
                  titlePanel("Results: President"), 
                  sidebarLayout(
@@ -224,9 +224,10 @@ ui <- navbarPage(
                          plotlyOutput("results"))))), 
     tabPanel("What Changed?", 
              fluidPage(
-                 titlePanel("What Changed?"), 
+                 titlePanel("What Changed?"),
                  mainPanel(plotlyOutput("swingsmap")),
-                 fluidPage(column(8, 
+                 fluidPage(
+                     column(8,
                  sidebarLayout(
                      sidebarPanel(
                          selectInput("state",
