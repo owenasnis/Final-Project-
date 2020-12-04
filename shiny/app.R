@@ -149,7 +149,7 @@ ui <- navbarPage(
     theme = shinytheme("sandstone"), 
     tabPanel("About the Project",
                  mainPanel(
-                     fixedRow(
+                     fluidRow(
                      column(4,
                      plotOutput("wimap")), 
                  column(4, 
@@ -162,7 +162,7 @@ ui <- navbarPage(
                votes.")),
              column(4,
              imageOutput("wiseal"))),
-             fixedRow(
+             fluidRow(
                  column(4, 
                         imageOutput("miseal")),
                  column(4, 
@@ -174,7 +174,7 @@ ui <- navbarPage(
                by 459,942 votes.")),
              column(4, 
                     plotOutput("mimap"))), 
-             fixedRow(
+             fluidRow(
                  column(4, 
                       plotOutput("pamap")),
              column(4,
