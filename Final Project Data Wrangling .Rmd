@@ -380,7 +380,8 @@ map16 <- countypres16 %>%
                            str_sub(fips, 1, 2) == 42 ~ "Pennsylvania", 
                            str_sub(fips, 1, 2) == 55 ~ "Wisconsin")) %>%   
   group_by(state) %>% 
-  mutate(pop_rank = rank(desc(pop)))
+  mutate(pop_rank = rank(desc(pop)), 
+        total_counties = n())
   
 
 ggplotly(ggplot(data = map12, aes(geometry = geometry, 
@@ -478,5 +479,29 @@ ggplot(data = trend, aes(x = dem_chg, fill = state)) +
              alpha = 0.5, 
              color = "purple")
   
+```
+
+```{r title page maps}
+
+
+ggplotly(ggplot(data = map16, 
+                            aes(geometry = geometry, 
+                                text = paste("2016 RESULTS: PRESIDENT", "<br>", 
+                                NAME, "<br>",
+                                "Clinton/Kaine (D):", dem_vs, "%", "<br>", 
+                                "Trump/Pence (R):", rep_vs, "%", "<br>", 
+                                "State Population Rank:", pop_rank, "of", total_counties)))+
+                         geom_sf(aes(fill = difference),
+                                 show.legend = FALSE) + 
+                         theme_map() + 
+                         scale_fill_gradient2(name = "Vote Share", 
+                                              low = "red2",
+                                              mid = "white",
+                                              high = "blue3", 
+                                              midpoint = 0) + 
+                         labs(title = "2016 Results By County (hover for results)"), 
+                     tooltip = c("text")) %>%
+                layout(showlegend = FALSE) 
+
 ```
 

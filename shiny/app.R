@@ -9,6 +9,8 @@ library(plotly)
 library(tidycensus)
 library(sf)
 library(ggthemes)
+census_api_key("19ea08aa1b10f210a3a218b15486e5a38506a4cf", 
+               install = TRUE, overwrite = TRUE)
 
 nhgis <- read_csv("raw_data/nhgis.csv") %>% 
     mutate(FIPS = paste0(STATEA, COUNTYA), 
@@ -72,8 +74,7 @@ countypres <- read_csv("raw_data/countypres_2000-2016.csv",
            rep_vs = if_else(year == 2012, Romney, Trump)) %>% 
     select(- Obama, - Clinton, - Romney, - Trump) %>% 
     left_join(nhgis, by = "FIPS") %>% 
-    left_join(nhgis_pop, by = "FIPS") %>% 
-    left_join(county_names, by = "FIPS")
+    left_join(nhgis_pop, by = "FIPS") 
 
 countypres12 <- countypres %>% 
     filter(year == 2012) %>% 
@@ -147,7 +148,8 @@ ui <- navbarPage(
     "The Battleground: Wisconsin, Michigan and Pennsylvania in Contemporary Presidential Elections",
     theme = shinytheme("sandstone"), 
     tabPanel("About the Project",
-             fluidPage(column(4,
+                 mainPanel(
+                     plotOutput("wimap")), 
              h3("Wisconsin (10 Electoral Votes)"),
              p("In 2012, President Barack Obama defeated Mitt Romney in 
                Wisconsin by 205,204 votes (roughly 6.7%), claiming the state's 
@@ -155,6 +157,7 @@ ui <- navbarPage(
                defeated Hillary Clinton in Wisconsin by 22,748 votes(roughly 
                0.7%). In four years, Wisconsin's electorate swung by 227,952 
                votes."),
+             imageOutput("wiseal"),
              h3("Michigan (16 Electoral Votes)"), 
              p("In 2012, President Obama defeated Romney in Michigan by 449,238 
                votes (roughly 9.5%), claiming the state's 16 electoral votes. 
@@ -166,7 +169,7 @@ ui <- navbarPage(
                287,865 votes (roughly 5.2%). claiming the commonwealth's 20 
                electoral votes. Four years later, Trump defeated Clinton in 
                Pennsylvania by 44,292 votes (roughly 0.7%). In four years, 
-               Pennsylvania's electorate swung by 332,157 votes.")), 
+               Pennsylvania's electorate swung by 332,157 votes."), 
              h3("The Project: Motivation and Summary"), 
              p("Wisconsin, Michigan and Pennsylvania have 46 votes in the 
                electoral college, and since 1988, these states have voted for 
@@ -192,14 +195,14 @@ ui <- navbarPage(
              p("My name is Owen Asnis and I am an A.B. candidate in Government 
                on the Public Policy track at Harvard College (class of 2023). 
                You can reach me at owenasnis@gmail.com or 
-               oasnis@college.harvard.edu."))),  
+               oasnis@college.harvard.edu.")),  
     tabPanel("Results: President", 
              fluidPage(
                  titlePanel("Results: President"), 
                  sidebarLayout(
                      sidebarPanel(
                          selectInput("year",
-                                     "Election Year:", 
+                                     "Select an election year:", 
                                      choices = list("2012", "2016"))),
                      mainPanel(
                          plotlyOutput("results"))))), 
@@ -223,7 +226,7 @@ ui <- navbarPage(
                  sidebarLayout(
                      sidebarPanel(
                          selectInput("variable", 
-                                     "Select Variable to Run Regression Model:", 
+                                     "Select a variable to run regression model:", 
                                      choices = list("white_pct", 
                                                     "nonwhite_pct", 
                                                     "less_college_pct", 
@@ -232,6 +235,18 @@ ui <- navbarPage(
                          plotOutput("pp"))))))
 
 server <- function(input, output) {
+    output$wimap <- renderPlot({
+        plot_usmap(include = "WI", 
+                   regions = "counties", 
+                   color = "purple", 
+                   size = 2)
+    })
+    output$wiseal <- renderImage({
+        list(src = "wisconsin.png", 
+             width = 250, 
+             height = 250, 
+             alt = "This is alternative text") 
+    }, deleteFile = FALSE)
     output$results <- renderPlotly({
         if(input$year == "2012"){
             ggplotly(ggplot(data = map12, 
@@ -253,7 +268,7 @@ server <- function(input, output) {
                      tooltip = c("text")) %>%
                 layout(showlegend = FALSE)  
         }
-        else if(input$select == "2016"){
+        else if(input$year == "2016"){
             ggplotly(ggplot(data = map16, 
                             aes(geometry = geometry, 
                                 text = paste("2016 RESULTS: PRESIDENT", "<br>", 
