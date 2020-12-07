@@ -142,7 +142,12 @@ trend <- countypres %>%
                              str_sub(fips, 1, 2) == 55 ~ "Wisconsin")) %>%   
     group_by(state) %>% 
     mutate(pop_rank = rank(desc(pop)), 
-           total_counties = n())
+           total_counties = n(), 
+           devo = case_when(pop < 25000 ~ "Rural",
+                                              pop >= 25000 & pop < 200000 ~ "Urban/Suburban", 
+                                              pop >= 200000 & pop < 500000 ~ "Small City", 
+                                              pop >= 500000 & pop <= 1000000 ~ "City", 
+                                              pop > 1000000 ~ "Metropolis"))
 
 ui <- navbarPage(
     "The Battleground: Wisconsin, Michigan and Pennsylvania in Contemporary Presidential Elections",
@@ -236,7 +241,19 @@ ui <- navbarPage(
                                                     "Michigan", 
                                                     "Pennsylvania"))),
                      mainPanel(
-                         plotOutput("countychange"))))))), 
+                         plotOutput("countychange")))))), 
+             fluidPage(
+                       sidebarLayout(
+                           sidebarPanel(
+                               selectInput("devo", 
+                                           "Developed Environment:", 
+                                           choices = list("Rural", 
+                                                          "Urban/Suburban", 
+                                                          "Small City", 
+                                                          "City", 
+                                                          "Metropolis"))),
+                           mainPanel(
+                               plotlyOutput("devo"))))), 
     tabPanel("Models", 
              fluidPage(
                  titlePanel("Model: Major Demographics and Vote Share"), 
@@ -249,7 +266,18 @@ ui <- navbarPage(
                                                     "less_college_pct", 
                                                     "college_more_pct"))), 
                      mainPanel(
-                         plotOutput("pp"))))))
+                         plotOutput("pp"))))), 
+    tabPanel("Moving Forward", 
+             fluidPage(
+                 titlePanel("2020 and Beyond"), 
+                 sidebarLayout(
+                     sidebarPanel(
+                         selectInput("party", 
+                                     "Focus counties:", 
+                                     choices = list("Democrats", 
+                                                    "Republicans"))), 
+                     mainPanel(
+                         plotlyOutput("plans"))))))
 
 server <- function(input, output) {
     output$wimap <- renderPlot({
@@ -361,8 +389,30 @@ server <- function(input, output) {
             theme_economist() +  
             geom_vline(xintercept = 0, 
                        alpha = 0.5, 
-                       color = "purple", 
-                       )
+                       color = "purple")
+    })
+    output$devo <- renderPlotly({
+            ggplotly(trend %>%
+                ungroup() %>% 
+                filter(devo == input$devo) %>% 
+            ggplot(aes(geometry = geometry, 
+                                text = paste("COUNTY SWINGS", "<br>", 
+                                             NAME, "<br>", 
+                                             "Swing:", "+", abs(dem_chg), "%", 
+                                             case_when(dem_chg > 0 ~ "towards Democrats", 
+                                                       dem_chg < 0 ~ "towards Republicans", 
+                                                       dem_chg == 0 ~ "EVEN"), "<br>", 
+                                             "State Population Rank:", pop_rank, "of", total_counties))) + 
+                         geom_sf(aes(fill = dem_chg), 
+                                 show.legend = FALSE) + 
+                         theme_map() +
+                         labs(title = "County Swings (hover for swings)") + 
+                         scale_fill_gradient2( low = "red2",
+                                               mid = "white",
+                                               high = "blue3", 
+                                               midpoint = 0), 
+            tooltip = c("text")) %>%
+            layout(showlegend = FALSE)
     })
     output$pp <- renderPlot({
         post_12 <- countypres12 %>%

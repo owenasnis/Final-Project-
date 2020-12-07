@@ -505,3 +505,51 @@ ggplotly(ggplot(data = map16,
 
 ```
 
+```{r types}
+
+trend <- countypres %>%
+    mutate(dem_diff = dem_vs - rep_vs) %>%  
+    select(FIPS, year, dem_diff) %>%
+    group_by(FIPS) %>% 
+    summarize(dem_chg = diff(dem_diff), 
+              .groups = "drop") %>%
+    left_join(nhgis_pop, by = "FIPS") %>%
+    rename(fips = FIPS) %>%
+    left_join(rustbelt_geometry, by = "fips") %>% 
+    mutate(dem_chg = round(dem_chg, digits = 1)) %>% 
+    mutate(state = case_when(str_sub(fips, 1, 2) == 26 ~ "Michigan", 
+                             str_sub(fips, 1, 2) == 42 ~ "Pennsylvania", 
+                             str_sub(fips, 1, 2) == 55 ~ "Wisconsin")) %>%   
+    group_by(state) %>% 
+    mutate(pop_rank = rank(desc(pop)), 
+           total_counties = n(), 
+           devo = case_when(pop < 25000 ~ "Rural",
+                                              pop >= 25000 & pop < 200000 ~ "Urban/Suburban", 
+                                              pop >= 200000 & pop < 500000 ~ "Small City", 
+                                              pop >= 500000 & pop <= 1000000 ~ "City", 
+                                              pop > 1000000 ~ "Metropolis"))
+
+            ggplotly(trend %>%
+                ungroup() %>% 
+                filter(devo == "Rural") %>% 
+            ggplot(aes(geometry = geometry, 
+                                text = paste("COUNTY SWINGS", "<br>", 
+                                             NAME, "<br>", 
+                                             "Swing:", "+", abs(dem_chg), "%", 
+                                             case_when(dem_chg > 0 ~ "towards Democrats", 
+                                                       dem_chg < 0 ~ "towards Republicans", 
+                                                       dem_chg == 0 ~ "EVEN"), "<br>", 
+                                             "State Population Rank:", pop_rank, "of", total_counties))) + 
+                         geom_sf(aes(fill = dem_chg), 
+                                 show.legend = FALSE) + 
+                         theme_map() +
+                         labs(title = "County Swings (hover for swings)") + 
+                         scale_fill_gradient2( low = "red2",
+                                               mid = "white",
+                                               high = "blue3", 
+                                               midpoint = 0), 
+                     tooltip = c("text")) %>% 
+                layout(showlegend = FALSE)   
+
+```
+
