@@ -363,19 +363,70 @@ ui <- navbarPage(
                                                     "college_more_pct"))), 
                      mainPanel(
                          plotOutput("pp"))))),
+             p("This graph represents the posterior probability distribution for
+               a regression model. The regression model calculates the expected 
+               change in Republican vote share for every percentage point 
+               increase in the dempgraphic categories of race and education 
+               attainment in Wisconsin, Michigan and Pennsylvania counties. The 
+               models were separated by election year to study the differences 
+               in voting tendancies between the 2012 presidential election and 
+               the 2016 presidential election. According to the models, race may 
+               have had a stronger influence in predicting republican vote share
+               in 2016, however, this prediction isn't made with overwhelming 
+               confidence. The graphs show, with uncertainty, that white voters 
+               tended to more strongly support Republicans in 2016, whereas 
+               non-white voters tended to more strongly support Democrats. The 
+               models were able to make clear, confident predictions in relation 
+               to education attainment. Voters without a college degree were 
+               more likely to support Republicans in 2016, and voters with at 
+               least a college degree were more likely to support Democrats. 
+               This prediction can be made with a good amount of certainty, 
+               because the histograms do not overlap."), 
              h3("Statistics: Top 25 Swing Counties versus Overall"), 
              fluidPage(
                  column(12,
                         mainPanel(
-                            tableOutput("stats"))))), 
+                            tableOutput("stats")))), 
+             p("Further statistical analysis proves that the swing towards Trump 
+               in 2016 was powered by white, less educated, rural voters. The 
+               table above displays average statistics from the top 25 swing 
+               counties in 2016, all of which heavily swung towards Trump. To be 
+               clear, for the white %, non-white %, no college degree %, and at 
+               least college degree %, the stats were calculated using the 
+               population of all counties combined, whereas the average 
+               population and the average median household income are calculated 
+               with each county population separated. The counties that swung 
+               for Trump were very different from the counties in general. 
+               Counties that swung for Trump tended to be significantly less 
+               diverse, less educated and smaller. The median household income 
+               was, on average, lower for swing counties, however, there wasn't 
+               an enormous difference.")), 
     tabPanel("Moving Forward", 
-                 titlePanel("The Future of the Battleground"), 
+                 titlePanel("The Future of the Battleground"),
                  h3("2020: Joseph R. Biden Jr. Flips the Battleground"),
              fluidPage(
                  column(6, 
                      plotOutput("bidenblue")), 
                  column(6,
-                        imageOutput("joebiden")))))
+                        imageOutput("joebiden"))), 
+             p("Just a few weeks ago, Joseph R. Biden Jr. of Scranton, 
+               Pennsylvania flipped the battleground once again. However, 
+               comprehensive, complete data is not yet availible. From what we 
+               know so far, it appears as though Biden paired marginal swings 
+               with booms in turnout to turn the states blue once again. For 
+               both parties, there is a lot of work to be done in the near 
+               future in Wisconsin, Michigan and Pennsylvania. For Democrats, 
+               the focus will be on the Metropolis, City, and Small City 
+               counties, as the rural areas appear to have solidified for the 
+               Republicans. The focus for Democrats should center around Green 
+               Bay, Madison, Milwaukee, Detroit, Grand Rapids, Ann Arbor, Flint, 
+               Pittsburgh, Philadelphia, Wilkes-Barre, Scranton, Erie and other 
+               urban centers. Republicans will certainly contest many of the 
+               Small City counties, and focus their efforts on driving up 
+               support in the more rural areas. While so much has changed 
+               between 2012 and 2020, one thing remains the same: the path to 
+               the White House runs through Wisconsin, Michigan and 
+               Pennsylvania.")))
 
 server <- function(input, output) {
     output$wimap <- renderPlot({
