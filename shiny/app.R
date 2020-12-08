@@ -4,7 +4,6 @@ library(tidyverse)
 library(tidycensus)
 library(usmap)
 library(rstanarm)
-library(gtsummary)
 library(plotly)
 library(tidycensus)
 library(sf)
@@ -255,12 +254,14 @@ ui <- navbarPage(
                study how parts of the electorate changed preference between 
                election cycles, specifically the major demographic categories of 
                race, education attainment, monthly income and population within 
-               counties."), 
+               counties. Data collected for the analysis is from the MIT 
+               Election Lab and IPUMS NHGIS."), 
              h3("About Me"),
              p("My name is Owen Asnis and I am an A.B. candidate in Government 
                on the Public Policy track at Harvard College (class of 2023). 
-               You can reach me at owenasnis@gmail.com or 
-               oasnis@college.harvard.edu."))),  
+               You can reach me at oasnis@college.harvard.edu. My GitHub profile
+               and repository for this project can be found at 
+               https://github.com/owenasnis."))),  
     tabPanel("Results: President",
              fluidPage(
                  titlePanel("Results: President"),
@@ -278,6 +279,22 @@ ui <- navbarPage(
                  titlePanel("What Changed?"),
                  h3("County Trends: 2016 as compared to 2012 (Hover for Swings)"),
                  mainPanel(plotlyOutput("swingsmap"))),
+                 p("Republicans gained in nearly all counties. In Wisconsin, 
+                   Donald Trump flipped many counties in the state's South-West
+                   region and gained nearly 9 points in Brown County, home of 
+                   Green Bay - the state's 4th most populous county. In 
+                   addition, Trump soared just South of Milwaukee, in Racine 
+                   County and Kenosha County. In Michigan, Trump outperformed 
+                   Romney nearly everywhere, most notably in Wayne County and 
+                   Macomb County - the Detroit metropolitan area. Additionally, 
+                   Trump outperformed Romney by nearly 20 points in Genesee 
+                   County - home of Flint and the state's 5th most populous 
+                   county. In Pennsylvania, Hillary Clinton performed relatively
+                   well in the Philadelphia suburbs and Allegheny County - home 
+                   of Pittsburgh. However, Trump outperformed Romney in the 
+                   state's smaller cities, especially Luzerne County - home 
+                   of Wilkes-Barre, Lackawanna County - home of Scranton - and 
+                   Erie County - home of Erie."), 
                  h3("County Trends By State"), 
                  fluidPage(
                      column(12,
@@ -303,7 +320,34 @@ ui <- navbarPage(
                                                           "City", 
                                                           "Metropolis"))),
                            mainPanel(
-                               plotlyOutput("devop")))))), 
+                               plotlyOutput("devop"))))), 
+             p("It's difficult to designate developed environments for counties. 
+               For this project, county population was used. Any county with a 
+               population of under 50,000 was designated as rural. While 50,000 
+               may seem large for a rural county, for these populous states, I 
+               felt like this cutoff best represented the states' smaller, more 
+               rural counties. Counties with a population between 50,000 and 
+               200,000 were designated as Urban/Suburban. Some suburban counties
+               could certainly have more than 200,000, such as the suburbs of 
+               Philadelphia, however these designations are meant to give a 
+               general sense for the size of the county. Counties with a 
+               population between 200,000 and 500,000 were designated as a Small 
+               City. Counties with a population between 500,000 and 1,000,000 
+               were designated as a City. Finally, counties with a population 
+               above 1,000,000 were designated as a metropolis, or a large 
+               city. These designations show that Trump significantly 
+               outperformed expectations in rural counties - Trump outperformed 
+               Romney in every rural county. Trump also performed extremely well
+               in Urban/Suburban counties - in all but three, Trump outperformed 
+               Romney. Overall, Clinton performed well in Small City counties in 
+               Wisconsin and Michigan, but Trump performed well in Small City 
+               counties in Pennsylvania. Clinton largely outperformed Obama in 
+               City counties, with the exception being Macomb County, Michigan, 
+               part of the Detroit metropolitan area. Clinton saw solid gains in 
+               cities such as Madison, Milwaukee, Grand Rapids, and the 
+               Philadelphia metropolitan area. In the four metropolis counties, 
+               Trump outperformed Clinton in Detroit, however the three others 
+               were largely unchanged from 2012.")), 
     tabPanel("Models", 
              fluidPage(
                  column(12, 
@@ -325,7 +369,7 @@ ui <- navbarPage(
                         mainPanel(
                             tableOutput("stats"))))), 
     tabPanel("Moving Forward", 
-                 titlePanel("Looking Ahead"), 
+                 titlePanel("The Future of the Battleground"), 
                  h3("2020: Joseph R. Biden Jr. Flips the Battleground"),
              fluidPage(
                  column(6, 
