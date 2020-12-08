@@ -143,11 +143,55 @@ trend <- countypres %>%
     group_by(state) %>% 
     mutate(pop_rank = rank(desc(pop)), 
            total_counties = n(), 
-           devo = case_when(pop < 25000 ~ "Rural",
-                                              pop >= 25000 & pop < 200000 ~ "Urban/Suburban", 
-                                              pop >= 200000 & pop < 500000 ~ "Small City", 
-                                              pop >= 500000 & pop <= 1000000 ~ "City", 
-                                              pop > 1000000 ~ "Metropolis"))
+           devo = case_when(pop < 50000 ~ "Rural",
+                            pop >= 50000 & pop < 200000 ~ "Urban/Suburban", 
+                            pop >= 200000 & pop < 500000 ~ "Small City", 
+                            pop >= 500000 & pop <= 1000000 ~ "City", 
+                            pop > 1000000 ~ "Metropolis")) 
+
+demographics <- countypres %>% 
+    ungroup() %>% 
+    filter(year == 2016) %>% 
+    select(-year, -dem_vs, -rep_vs, -pop) %>% 
+    rename(fips = FIPS)
+
+top_25_summary_stats <- trend %>% 
+    ungroup() %>% 
+    arrange(desc(abs(dem_chg))) %>% 
+    head(25) %>% 
+    left_join(demographics, by = "fips") %>% 
+    summarize(total_white = sum(raw_white), 
+              total_nonwhite = sum(raw_black + raw_asian + raw_other), 
+              total_less_college = sum(raw_high_school_degree + 
+                                           raw_college_no_degree), 
+              total_college_more = sum(raw_bachelors_degree + raw_grad_degree), 
+              total_population = sum(pop), 
+              avg_pop = mean(pop), 
+              avg_income = mean(median_household_income)) %>% 
+    mutate(white_pct = (total_white / total_population) * 100, 
+           nonwhite_pct = (total_nonwhite / total_population) * 100, 
+           less_college_pct = (total_less_college / total_population) * 100, 
+           college_more_pct = (total_college_more / total_population) * 100) %>%  
+    select(white_pct, nonwhite_pct, less_college_pct, college_more_pct, avg_pop, 
+           avg_income)
+
+summary_stats <- trend %>%
+    ungroup() %>% 
+    left_join(demographics, by = "fips") %>% 
+    summarize(total_white = sum(raw_white), 
+              total_nonwhite = sum(raw_black + raw_asian + raw_other), 
+              total_less_college = sum(raw_high_school_degree + 
+                                           raw_college_no_degree), 
+              total_college_more = sum(raw_bachelors_degree + raw_grad_degree), 
+              total_population = sum(pop), 
+              avg_pop = mean(pop),
+              avg_income = mean(median_household_income)) %>% 
+    mutate(white_pct = (total_white / total_population) * 100, 
+           nonwhite_pct = (total_nonwhite / total_population) * 100, 
+           less_college_pct = (total_less_college / total_population) * 100, 
+           college_more_pct = (total_college_more / total_population) * 100) %>%  
+    select(white_pct, nonwhite_pct, less_college_pct, college_more_pct, avg_pop, 
+           avg_income)
 
 ui <- navbarPage(
     "The Battleground: Wisconsin, Michigan and Pennsylvania in Contemporary Presidential Elections",
@@ -155,9 +199,9 @@ ui <- navbarPage(
     tabPanel("About the Project",
                  mainPanel(
                      fluidRow(
-                     column(4,
+                     column(4, 
                      plotOutput("wimap")), 
-                 column(4, 
+                 column(4, align = "center",
              h3("Wisconsin (10 Electors)"),
              p("In 2012, President Barack Obama defeated Mitt Romney in 
                Wisconsin by 205,204 votes (roughly 6.7%), claiming the state's 
@@ -165,12 +209,12 @@ ui <- navbarPage(
                defeated Hillary Clinton in Wisconsin by 22,748 votes(roughly 
                0.7%). In four years, Wisconsin's electorate swung by 227,952 
                votes.")),
-             column(4,
+             column(4, 
              imageOutput("wiseal"))),
              fluidRow(
-                 column(4, 
+                 column(4,
                         imageOutput("miseal")),
-                 column(4, 
+                 column(4, align = "center",
              h3("Michigan (16 Electors)"), 
              p("In 2012, President Obama defeated Romney in Michigan by 449,238 
                votes (roughly 9.5%), claiming the state's 16 electoral votes. 
@@ -182,7 +226,7 @@ ui <- navbarPage(
              fluidRow(
                  column(4, 
                       plotOutput("pamap")),
-             column(4,
+             column(4,align = "center",
              h3("Pennsylvania (20 Electors)"), 
              p("In 2012, President Obama defeated Romney in Pennsylvania by 
                287,865 votes (roughly 5.2%). claiming the commonwealth's 20 
@@ -219,7 +263,8 @@ ui <- navbarPage(
                oasnis@college.harvard.edu."))),  
     tabPanel("Results: President",
              fluidPage(
-                 titlePanel("Results: President"), 
+                 titlePanel("Results: President"),
+                 h3("Hover for Results"),
                  sidebarLayout(
                      sidebarPanel(
                          selectInput("year",
@@ -229,10 +274,13 @@ ui <- navbarPage(
                          plotlyOutput("results"))))), 
     tabPanel("What Changed?", 
              fluidPage(
+                 column(12,
                  titlePanel("What Changed?"),
-                 mainPanel(plotlyOutput("swingsmap")),
+                 h3("County Trends: 2016 as compared to 2012 (Hover for Swings)"),
+                 mainPanel(plotlyOutput("swingsmap"))),
+                 h3("County Trends By State"), 
                  fluidPage(
-                     column(8,
+                     column(12,
                  sidebarLayout(
                      sidebarPanel(
                          selectInput("state",
@@ -241,8 +289,10 @@ ui <- navbarPage(
                                                     "Michigan", 
                                                     "Pennsylvania"))),
                      mainPanel(
-                         plotOutput("countychange")))))), 
+                         plotOutput("countychange")))))),
+             h3("County Trends by Developed Environment (Hover for Swings)"), 
              fluidPage(
+                 column(12,
                        sidebarLayout(
                            sidebarPanel(
                                selectInput("devo", 
@@ -253,31 +303,35 @@ ui <- navbarPage(
                                                           "City", 
                                                           "Metropolis"))),
                            mainPanel(
-                               plotlyOutput("devo"))))), 
+                               plotlyOutput("devop")))))), 
     tabPanel("Models", 
              fluidPage(
-                 titlePanel("Model: Major Demographics and Vote Share"), 
+                 column(12, 
+                 titlePanel("Models and Statistics"),
+                 h3("Model: Race and Education Attainment by Year"), 
                  sidebarLayout(
                      sidebarPanel(
                          selectInput("variable", 
                                      "Select a variable to run regression model:", 
-                                     choices = list("white_pct", 
+                                     choices = c("white_pct", 
                                                     "nonwhite_pct", 
                                                     "less_college_pct", 
                                                     "college_more_pct"))), 
                      mainPanel(
-                         plotOutput("pp"))))), 
-    tabPanel("Moving Forward", 
+                         plotOutput("pp"))))),
+             h3("Statistics: Top 25 Swing Counties versus Overall"), 
              fluidPage(
-                 titlePanel("2020 and Beyond"), 
-                 sidebarLayout(
-                     sidebarPanel(
-                         selectInput("party", 
-                                     "Focus counties:", 
-                                     choices = list("Democrats", 
-                                                    "Republicans"))), 
-                     mainPanel(
-                         plotlyOutput("plans"))))))
+                 column(12,
+                        mainPanel(
+                            tableOutput("stats"))))), 
+    tabPanel("Moving Forward", 
+                 titlePanel("Looking Ahead"), 
+                 h3("2020: Joseph R. Biden Jr. Flips the Battleground"),
+             fluidPage(
+                 column(6, 
+                     plotOutput("bidenblue")), 
+                 column(6,
+                        imageOutput("joebiden")))))
 
 server <- function(input, output) {
     output$wimap <- renderPlot({
@@ -326,8 +380,7 @@ server <- function(input, output) {
                                               low = "red2",
                                               mid = "white",
                                               high = "blue3", 
-                                              midpoint = 0) + 
-                         labs(title = "2012 Results By County (hover for results)"), 
+                                              midpoint = 0), 
                      tooltip = c("text")) %>%
                 layout(showlegend = FALSE)  
         }
@@ -346,8 +399,7 @@ server <- function(input, output) {
                                               low = "red2",
                                               mid = "white",
                                               high = "blue3", 
-                                              midpoint = 0) + 
-                         labs(title = "2016 Results By County (hover for results)"), 
+                                              midpoint = 0),
                      tooltip = c("text")) %>%
                 layout(showlegend = FALSE)  
         }
@@ -364,7 +416,6 @@ server <- function(input, output) {
                      geom_sf(aes(fill = dem_chg), 
                              show.legend = FALSE) + 
                      theme_map() +
-                     labs(title = "County Swings (hover for swings)") + 
                      scale_fill_gradient2( low = "red2",
                                           mid = "white",
                                           high = "blue3", 
@@ -382,20 +433,19 @@ server <- function(input, output) {
             scale_x_continuous(breaks = c(-30, -20, -10, 0, 10), 
                                labels = c("+30% R", "+20% R", "+10% R", 
                                           "Even", "+10% D")) +
-            labs(title = "County Swings in Selected State", 
+            labs(title = "County Trends in Selected State", 
                  x = "Vote Share Change", 
-                 y = "Number of Couties Selected State", 
+                 y = "Number of Couties in Selected State", 
                  subtitle = "Most counties swing towards Republicans") + 
             theme_economist() +  
             geom_vline(xintercept = 0, 
                        alpha = 0.5, 
                        color = "purple")
     })
-    output$devo <- renderPlotly({
-            ggplotly(trend %>%
-                ungroup() %>% 
-                filter(devo == input$devo) %>% 
-            ggplot(aes(geometry = geometry, 
+    output$devop <- renderPlotly({
+            ggplotly(ggplot(data = trend %>% 
+                                    filter(devo == input$devo), 
+                                aes(geometry = geometry, 
                                 text = paste("COUNTY SWINGS", "<br>", 
                                              NAME, "<br>", 
                                              "Swing:", "+", abs(dem_chg), "%", 
@@ -403,10 +453,8 @@ server <- function(input, output) {
                                                        dem_chg < 0 ~ "towards Republicans", 
                                                        dem_chg == 0 ~ "EVEN"), "<br>", 
                                              "State Population Rank:", pop_rank, "of", total_counties))) + 
-                         geom_sf(aes(fill = dem_chg), 
-                                 show.legend = FALSE) + 
+                         geom_sf(aes(fill = dem_chg), show.legend = FALSE) + 
                          theme_map() +
-                         labs(title = "County Swings (hover for swings)") + 
                          scale_fill_gradient2( low = "red2",
                                                mid = "white",
                                                high = "blue3", 
@@ -448,11 +496,37 @@ server <- function(input, output) {
             scale_y_continuous(labels = scales::percent_format()) + 
             labs(title = "Posterior Probability Distribution", 
                  y = "Probability", 
-                 x = "Predicted % influence on Republican vote share") + 
+                 x = "% Influence on Republican Vote Share For Every 1% Increase in Variable") + 
             theme_economist() + 
             scale_fill_manual(name = "Election Year", 
                               values = c("royalblue", "gold1"))
     })
+    output$stats <- renderTable({
+        full_join(top_25_summary_stats, summary_stats, 
+                  by = c("white_pct", "nonwhite_pct", 
+                         "less_college_pct", "college_more_pct", 
+                         "avg_pop", "avg_income")) %>% 
+            mutate(Source = c("Top 25 Swing Counties", "All Counties")) %>% 
+            rename("White %" = white_pct, 
+                   "Non-white %" = nonwhite_pct, 
+                   "No College Degree %" = less_college_pct, 
+                   "At Least College Degree %" = college_more_pct, 
+                   "Average Population" = avg_pop, 
+                   "Average Median Household Income" = avg_income) %>% 
+            relocate("Source", .before = "White %")
+    })
+    output$bidenblue <- renderPlot({
+        plot_usmap(regions = "states", 
+                   include = c("WI", "MI", "PA"), 
+                   fill = "blue1", 
+                   size = 1.15)
+    }) 
+    output$joebiden <- renderImage({
+        list(src = "biden.jpg",
+             height = 350, 
+             width = 500, 
+             alt = "This is alternative text") 
+    }, deleteFile = FALSE)
 }
 
 shinyApp(ui = ui, server = server)
