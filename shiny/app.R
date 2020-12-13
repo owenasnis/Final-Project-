@@ -193,7 +193,8 @@ summary_stats <- trend %>%
            avg_income)
 
 ui <- navbarPage(
-    "The Battleground: Wisconsin, Michigan and Pennsylvania in Contemporary Presidential Elections",
+    "The Battleground: Wisconsin, Michigan and Pennsylvania in Contemporary 
+    Presidential Elections",
     theme = shinytheme("sandstone"), 
     tabPanel("About the Project",
                  mainPanel(
@@ -277,7 +278,8 @@ ui <- navbarPage(
              fluidPage(
                  column(12,
                  titlePanel("What Changed?"),
-                 h3("County Trends: 2016 as compared to 2012 (Hover for Swings)"),
+                 h3("County Trends: 2016 as compared to 2012 (Hover for 
+                    Swings)"),
                  mainPanel(plotlyOutput("swingsmap"))),
                  p("Republicans gained in nearly all counties. In Wisconsin, 
                    Donald Trump flipped many counties in the state's South-West
@@ -356,7 +358,8 @@ ui <- navbarPage(
                  sidebarLayout(
                      sidebarPanel(
                          selectInput("variable", 
-                                     "Select a variable to run regression model:", 
+                                     "Select a variable to run regression 
+                                     model:", 
                                      choices = c("white_pct", 
                                                     "nonwhite_pct", 
                                                     "less_college_pct", 
@@ -465,9 +468,11 @@ server <- function(input, output) {
                             aes(geometry = geometry, 
                                 text = paste("2012 RESULTS: PRESIDENT", "<br>", 
                                              NAME, "<br>",
-                                             "Obama/Biden (D - inc):", dem_vs, "%", "<br>", 
-                                             "Romney/Ryan (R):", rep_vs, "%", "<br>", 
-                                             "State Population Rank:", pop_rank, "of", total_counties))) +
+                                             "Obama/Biden (D - inc):", 
+                                             dem_vs, "%", "<br>", 
+                                             "Romney/Ryan (R):", rep_vs, "%", 
+                                             "<br>", "State Population Rank:", 
+                                             pop_rank, "of", total_counties))) +
                          geom_sf(aes(fill = difference),
                                  show.legend = FALSE) + 
                          theme_map() + 
@@ -486,7 +491,8 @@ server <- function(input, output) {
                                 NAME, "<br>",
                                 "Clinton/Kaine (D):", dem_vs, "%", "<br>", 
                                 "Trump/Pence (R):", rep_vs, "%", "<br>", 
-                                "State Population Rank:", pop_rank, "of", total_counties)))+
+                                "State Population Rank:", pop_rank, "of", 
+                                total_counties)))+
                          geom_sf(aes(fill = difference),
                                  show.legend = FALSE) + 
                          theme_map() + 
@@ -500,14 +506,19 @@ server <- function(input, output) {
         }
     })
     output$swingsmap <- renderPlotly({
-        ggplotly(ggplot(data = trend, aes(geometry = geometry, 
-                                          text = paste("COUNTY SWINGS", "<br>", 
-                                                       NAME, "<br>", 
-                                                       "Swing:", "+", abs(dem_chg), "%", 
-                                                       case_when(dem_chg > 0 ~ "towards Democrats", 
-                                                                 dem_chg < 0 ~ "towards Republicans", 
-                                                                 dem_chg == 0 ~ "EVEN"), "<br>", 
-                                                       "State Population Rank:", pop_rank, "of", total_counties))) + 
+        ggplotly(ggplot(data = trend, 
+                        aes(geometry = geometry, 
+                            text = paste("COUNTY SWINGS", "<br>", 
+                                         NAME, "<br>", 
+                                         "Swing:", "+", 
+                                         abs(dem_chg), "%", 
+                                         case_when(dem_chg > 0 ~ 
+                                                       "towards Democrats", 
+                                                   dem_chg < 0 ~ 
+                                                       "towards Republicans", 
+                                                   dem_chg == 0 ~ "EVEN"), 
+                                         "<br>", "State Population Rank:", 
+                                         pop_rank, "of", total_counties))) + 
                      geom_sf(aes(fill = dem_chg), 
                              show.legend = FALSE) + 
                      theme_map() +
@@ -540,14 +551,17 @@ server <- function(input, output) {
     output$devop <- renderPlotly({
             ggplotly(ggplot(data = trend %>% 
                                     filter(devo == input$devo), 
-                                aes(geometry = geometry, 
+                            aes(geometry = geometry, 
                                 text = paste("COUNTY SWINGS", "<br>", 
                                              NAME, "<br>", 
                                              "Swing:", "+", abs(dem_chg), "%", 
-                                             case_when(dem_chg > 0 ~ "towards Democrats", 
-                                                       dem_chg < 0 ~ "towards Republicans", 
-                                                       dem_chg == 0 ~ "EVEN"), "<br>", 
-                                             "State Population Rank:", pop_rank, "of", total_counties))) + 
+                                             case_when(dem_chg > 0 ~ 
+                                                           "towards Democrats", 
+                                                       dem_chg < 0 ~ 
+                                                          "towards Republicans", 
+                                                       dem_chg == 0 ~ "EVEN"), 
+                                             "<br>", "State Population Rank:", 
+                                             pop_rank, "of", total_counties))) + 
                          geom_sf(aes(fill = dem_chg), show.legend = FALSE) + 
                          theme_map() +
                          scale_fill_gradient2( low = "red2",
@@ -591,7 +605,8 @@ server <- function(input, output) {
             scale_y_continuous(labels = scales::percent_format()) + 
             labs(title = "Posterior Probability Distribution", 
                  y = "Probability", 
-                 x = "% Influence on Republican Vote Share For Every 1% Increase in Variable") + 
+                 x = "% Influence on Republican Vote Share 
+                 For Every 1% Increase in Variable") + 
             theme_economist() + 
             scale_fill_manual(name = "Election Year", 
                               values = c("royalblue", "gold1"))
