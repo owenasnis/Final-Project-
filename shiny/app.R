@@ -11,8 +11,19 @@ library(ggthemes)
 census_api_key("19ea08aa1b10f210a3a218b15486e5a38506a4cf", 
                install = TRUE, overwrite = TRUE)
 
+# The nhgis dataset contains three demographic categories: race, education
+# attainment and median household income. Additionally, an important part of
+# this dataset was the STATEA and COUNTYA columns, which contained the state and
+# county FIPS codes. In order to create the FIPS column, Mitchell helped me
+# paste these two columns together.
+
 nhgis <- read_csv("raw_data/nhgis.csv") %>% 
-    mutate(FIPS = paste0(STATEA, COUNTYA), 
+    mutate(FIPS = paste0(STATEA, COUNTYA),
+           
+# This part of the code is mainly renaming columns from the nhgis dataset, and
+# creating some new columns. Mainly, my goal was to simplify this huge dataset
+# into columns that would be easy to work with.
+           
            white_pct = (AF2ME002 / AF2ME001) * 100,
            raw_white = AF2ME002, 
            black_pct = (AF2ME003 / AF2ME001) * 100, 
@@ -37,10 +48,17 @@ nhgis <- read_csv("raw_data/nhgis.csv") %>%
            raw_high_school_degree, raw_college_no_degree, raw_bachelors_degree, 
            raw_grad_degree)
 
+# As I was working on the project, I realized that it would be helpful to see
+# how populous counties were. Therefore, I downloaded another dataset and named
+# it nhgis_pop.
+
 nhgis_pop <- read_csv("raw_data/pop.csv") %>%  
     mutate(FIPS = paste0(STATEA, COUNTYA), 
            pop = AF2LE001) %>% 
     select(FIPS, pop)
+
+# countypres is my major dataset. The main component is downloaded from the MIT
+# Election LAB. nhgis and nhgis_pop are joined with the main dataset. 
 
 countypres <- read_csv("raw_data/countypres_2000-2016.csv", 
                        col_types = cols(year = col_double(),
@@ -54,6 +72,11 @@ countypres <- read_csv("raw_data/countypres_2000-2016.csv",
                                         candidatevotes = col_double(),
                                         totalvotes = col_double(),
                                         version = col_double())) %>%
+    
+# In order to focus on only Wisconsin, Michigan and Pennsylvania, the
+# presidential candidates from the two major parties and the 2012 and 2016
+# elections, I had to do some wrangling to simplify the dataset.
+    
     filter(state_po %in% c("PA", "WI", "MI"), 
            party %in% c("democrat", "republican"), 
            year %in% c(2012, 2016)) %>% 
@@ -61,6 +84,11 @@ countypres <- read_csv("raw_data/countypres_2000-2016.csv",
     mutate(vote_share = (candidatevotes/totalvotes) * 100, 
            party = case_when(party == "democrat" ~ "D", 
                              party == "republican" ~ "R")) %>%
+    
+# In order to make the dataset easier to use, Mitchell helped me use pivot_wider
+# here. Specifically, we pivoted the candidate column and the vote_share column,
+# which was created right above.
+    
     pivot_wider(names_from = "candidate", 
                 values_from = "vote_share") %>% 
     group_by(FIPS, year) %>% 
@@ -69,11 +97,28 @@ countypres <- read_csv("raw_data/countypres_2000-2016.csv",
               Romney = mean(`Mitt Romney`, na.rm = TRUE), 
               Trump = mean(`Donald Trump`, na.rm = TRUE),
               .groups = "keep") %>% 
+    
+# In order to rename the Obama and Clinton columns to dem_vs and the Romney and
+# Trump columns to rep_vs, I used an if_else statement. The if_else statement
+# basically states that if the year is 2012, then dem_vs should be equal to
+# Obama. Otherwise, it should be equal to Clinton (the only other option is
+# 2016). The same explanation is true for rep_vs. 
+    
     mutate(dem_vs = if_else(year == 2012, Obama, Clinton), 
            rep_vs = if_else(year == 2012, Romney, Trump)) %>% 
     select(- Obama, - Clinton, - Romney, - Trump) %>% 
+    
+# Finally, I joined the two nhgis datasets by FIPS, which was already included
+# in the MIT Election Lab dataset. Therefore, demographic categories that I
+# wanted to study would be included in the same dataset as the election results.
+    
     left_join(nhgis, by = "FIPS") %>% 
     left_join(nhgis_pop, by = "FIPS") 
+
+# countypres12 is a subset of countypres that only includes the 2012
+# presidential election. Additionally, it simplifies some of the columns. This
+# dataset was used to create the posterior probability distributions in the
+# Models section of my project.
 
 countypres12 <- countypres %>% 
     filter(year == 2012) %>% 
@@ -81,11 +126,20 @@ countypres12 <- countypres %>%
            less_college_pct = high_school_degree + college_no_degree, 
            college_more_pct = bachelors_degree + grad_degree)
 
+# countypres16 is identical to countypres12, except that it only includes the
+# 2016 presidential election. This dataset was used to create the posterior
+# probability distributions in the Models section of my project.
+
 countypres16 <- countypres %>% 
     filter(year == 2016) %>% 
     mutate(nonwhite_pct = black_pct + asian_pct + other_pct, 
            less_college_pct = high_school_degree + college_no_degree, 
            college_more_pct = bachelors_degree + grad_degree)
+
+# rustbelt_geometry is needed to use geom_sf in all of the graphing plots. I had
+# to use tidycensus and my key to download this information. I selected a random
+# variable, which I drop in the next step, as all I was interested in was the
+# geometry or the shapes of the counties and states. 
 
 rustbelt_geometry <- get_acs(geography = "county", 
                              state = c(26, 42, 55), 
@@ -94,12 +148,20 @@ rustbelt_geometry <- get_acs(geography = "county",
     select(geometry, GEOID, NAME) %>% 
     rename(fips = GEOID)
 
+# map12 is a mutated version of countypres12 that is formatted for geom_sf. This
+# dataset is used to create the interactive graph in the Results: President part
+# of my project.
+
 map12 <- countypres12 %>%
     ungroup() %>% 
     select(FIPS, dem_vs, rep_vs) %>%
     left_join(nhgis_pop, by = "FIPS") %>% 
     rename(fips = FIPS) %>% 
     mutate(difference = dem_vs - rep_vs) %>% 
+    
+# An important part of map12 is joining rustbelt_geometry. Therefore, the
+# geom_sf would be able to create the map graph when plotting the data.
+    
     left_join(rustbelt_geometry, by = "fips") %>% 
     mutate(dem_vs = round(dem_vs, digits = 1), 
            rep_vs = round(rep_vs, digits = 1), 
@@ -107,8 +169,16 @@ map12 <- countypres12 %>%
                              str_sub(fips, 1, 2) == 42 ~ "Pennsylvania", 
                              str_sub(fips, 1, 2) == 55 ~ "Wisconsin")) %>%   
     group_by(state) %>% 
+    
+# Additionally, I wanted to create a state population ranking in the hover box,
+# and therefore, I used the rank function to create a column where the counties
+# were ranked by population.
+    
     mutate(pop_rank = rank(desc(pop)), 
            total_counties = n())
+
+# map16 follows the same structure as map12, except that it's mutated from
+# countypres16 rather than countypres12.
 
 map16 <- countypres16 %>% 
     ungroup() %>% 
@@ -126,12 +196,28 @@ map16 <- countypres16 %>%
     mutate(pop_rank = rank(desc(pop)), 
            total_counties = n())
 
+# trend is a mutated dataset from countypres that is used frequently throughout
+# the project, specifically in the What Changed? section of my project. This
+# dataset is mutated to show the differences between county vote share in 2016
+# and county vote share in 2012.
+
 trend <- countypres %>%
     mutate(dem_diff = dem_vs - rep_vs) %>%  
     select(FIPS, year, dem_diff) %>%
     group_by(FIPS) %>% 
+    
+# The summarize function is responsible for creating the dem_chg column, which
+# represents the county change between election years. By taking the difference
+# of the dem_diff column, grouped by FIPS, year and dem_diff, we find the county
+# trend between elections. Negative numbers indicate Republican swings, whereas
+# positive numbers indicate Democrat swings.
+    
     summarize(dem_chg = diff(dem_diff), 
               .groups = "drop") %>%
+    
+# I also joined nhgis_pop and rustbelt_geometry. nhgis_pop is needed for the
+# population rankings and rustbelt_geometry is needed for geom_sf.
+    
     left_join(nhgis_pop, by = "FIPS") %>%
     rename(fips = FIPS) %>%
     left_join(rustbelt_geometry, by = "fips") %>% 
@@ -148,17 +234,36 @@ trend <- countypres %>%
                             pop >= 500000 & pop <= 1000000 ~ "City", 
                             pop > 1000000 ~ "Metropolis")) 
 
+# demographics is a mutated dataset from countypres that only includes
+# demographic statistics. I use this dataset when calculating summary statistics
+# for the Models part of my project.
+
 demographics <- countypres %>% 
     ungroup() %>% 
+    
+# The demographic statistics from nhgis are from 2012-2016. Therefore, in this
+# project, the demographic statistics are the same for the 2012 and 2016
+# elections. To avoid duplicates, I filtered by year == 2016.
+    
     filter(year == 2016) %>% 
     select(-year, -dem_vs, -rep_vs, -pop) %>% 
     rename(fips = FIPS)
+
+# top_25_summary_stats is a tibble mutated from trend that is displayed in the
+# Models part of my project. This tibble summarizes demographic statistics from
+# the top 25 swing counties or those that had the highest absolute value of
+# dem_chg.
 
 top_25_summary_stats <- trend %>% 
     ungroup() %>% 
     arrange(desc(abs(dem_chg))) %>% 
     head(25) %>% 
     left_join(demographics, by = "fips") %>% 
+    
+# I decided to simplify the dataset in order to make the tibble easier to read
+# and understand. In addition, I had to use the sum function because I was
+# interested in finding demographic statistics for all 25 counties combined.
+    
     summarize(total_white = sum(raw_white), 
               total_nonwhite = sum(raw_black + raw_asian + raw_other), 
               total_less_college = sum(raw_high_school_degree + 
@@ -167,12 +272,21 @@ top_25_summary_stats <- trend %>%
               total_population = sum(pop), 
               avg_pop = mean(pop), 
               avg_income = mean(median_household_income)) %>% 
+    
+# I used a mutate function to change the raw statistics into percentages. Again,
+# my goal was to make the tibble easier to read and understand.
+    
     mutate(white_pct = (total_white / total_population) * 100, 
            nonwhite_pct = (total_nonwhite / total_population) * 100, 
            less_college_pct = (total_less_college / total_population) * 100, 
            college_more_pct = (total_college_more / total_population) * 100) %>%  
     select(white_pct, nonwhite_pct, less_college_pct, college_more_pct, avg_pop, 
            avg_income)
+
+# summary_stats is nearly identical to top_25_summary_stats, with the only
+# difference being that summary_states takes into account all counties, not just
+# the top 25. To be clear, this means that the top 25 counties in
+# top_25_summary_stats are included in summary_stats.
 
 summary_stats <- trend %>%
     ungroup() %>% 
@@ -433,13 +547,37 @@ ui <- navbarPage(
 
 server <- function(input, output) {
     output$wimap <- renderPlot({
+        
+# wimap is a simple map of Wisconsin using the plot_usmap function. I set the
+# regions argument to counties so that the map would output a graph with
+# Wisconsin counties. I repeated the same steps for mimap and pamap, except I
+# changed the include argument to match the state.
+        
     plot_usmap(include = "WI", 
                regions = "counties")
+        
+# I set the height and width equal to 250, the same size as all of the other
+# images and graphs on the about page. Therefore, everything would be lined up
+# very nicely.
+        
     }, height = 250, width = 250)
     output$wiseal <- renderImage({
+        
+# For wiseal, I used the list function, which was suggested in the Slack
+# channel. Also, I made sure to use renderImage rather than renderPlot or
+# renderPlotly. The image, which is simply the Wisconsin state seal, was found
+# on Wikipedia. I dropped this image into my shiny folder and set the src
+# argument to the png. I repeated this process for miseal and paseal. 
+        
         list(src = "wisconsin.png", 
              width = 250, 
              height = 250, 
+             
+# At first, I wasn't entirely sure what the alt argument meant. However, one
+# time I forgot to move my image into the correct directory and the alt argument
+# appeared in the image's place. Therefore, I believe this argument is used for
+# when the image has trouble loading in.
+             
              alt = "This is alternative text") 
     }, deleteFile = FALSE)
     output$miseal <- renderImage({
@@ -463,9 +601,24 @@ server <- function(input, output) {
              alt = "This is alternative text")
     }, deleteFile = FALSE)
     output$results <- renderPlotly({
+        
+# Because there was only two options (2012 and 2016) for this interactive graph,
+# I used if and else if to set up the different graphs. Therefore, for whatever
+# year the user selected, the correct graph would appear.
+        
         if(input$year == "2012"){
+            
+# I surrounded my ggplot with ggplotly in order to make the graph interactive
+# with hover boxes. Additionally, I had to make sure that I used renderPlotly
+# instead of renderPlot, a mistake I made multiple times leading to errors.
+            
             ggplotly(ggplot(data = map12, 
-                            aes(geometry = geometry, 
+                            aes(geometry = geometry,
+                                
+# The text argument is used for the hover boxes. I used a paste function in
+# order to specify the words and variables I wanted to include in the hover
+# boxes."<br>" is used for line breaks.  
+                                
                                 text = paste("2012 RESULTS: PRESIDENT", "<br>", 
                                              NAME, "<br>",
                                              "Obama/Biden (D - inc):", 
@@ -473,9 +626,22 @@ server <- function(input, output) {
                                              "Romney/Ryan (R):", rep_vs, "%", 
                                              "<br>", "State Population Rank:", 
                                              pop_rank, "of", total_counties))) +
+    
+# I set the fill aesthetic within geom_sf to the difference variable. Therefore,
+# we'd get a replicate CNN style presidential map, where the color in each
+# county correlates to the difference in percent vote share.
+    
                          geom_sf(aes(fill = difference),
                                  show.legend = FALSE) + 
                          theme_map() + 
+    
+# Mitchell helped me use scale_fill_gradient2 to set the values in my fill
+# scale. Because the difference variable was set up so that negative values
+# indicated a republican lead and positive values indicated a democratic lead, I
+# set the low argument to a red color and the high argument to a blue color. I
+# set the midpoint argument to 0, because if the difference value was 0, it
+# would mean that the county was dead even.
+    
                          scale_fill_gradient2(name = "Vote Share", 
                                               low = "red2",
                                               mid = "white",
@@ -485,6 +651,12 @@ server <- function(input, output) {
                 layout(showlegend = FALSE)  
         }
         else if(input$year == "2016"){
+            
+# The second map, presidential results from 2016, is the exact same code as the
+# previous graph, except for the data argument. Here the data argument is map16
+# rather than map12, because the results for this graph are from the 2016
+# presidential election.
+            
             ggplotly(ggplot(data = map16, 
                             aes(geometry = geometry, 
                                 text = paste("2016 RESULTS: PRESIDENT", "<br>", 
@@ -506,11 +678,29 @@ server <- function(input, output) {
         }
     })
     output$swingsmap <- renderPlotly({
+        
+# swingsmap is very similar to the results output directly above. However, there
+# are a few, very important adjustments. To start, the data argument is set to
+# trend, a dataset mutated for the purpose of this graph.
+        
         ggplotly(ggplot(data = trend, 
-                        aes(geometry = geometry, 
+                        aes(geometry = geometry,
+                            
+# The text argument is adjusted, because the text within the hover boxes needed
+# to be changed. Rather than show the results, I wanted the swings to be
+# outputted in the hover boxes.
+                            
                             text = paste("COUNTY SWINGS", "<br>", 
                                          NAME, "<br>", 
                                          "Swing:", "+", 
+                                         
+# I used the abs function to take the absolute value of dem_chg. Then, in order
+# to specify which party the county swung towards, I used a case_when function.
+# If the dem_chg value was positive, the case_when would output "towards
+# democrats". If the dem_chg value was negative, the case_when would output
+# "towards Republicans". Finally, if the dem_chg value was 0, then the case_when
+# would output "EVEN".
+                                         
                                          abs(dem_chg), "%", 
                                          case_when(dem_chg > 0 ~ 
                                                        "towards Democrats", 
@@ -519,6 +709,10 @@ server <- function(input, output) {
                                                    dem_chg == 0 ~ "EVEN"), 
                                          "<br>", "State Population Rank:", 
                                          pop_rank, "of", total_counties))) + 
+    
+# I changed the fill argument in the geom_sf aesthetic to dem_chg, because the
+# county colors should correlate with the trends in this graph, not the results.
+    
                      geom_sf(aes(fill = dem_chg), 
                              show.legend = FALSE) + 
                      theme_map() +
@@ -530,7 +724,17 @@ server <- function(input, output) {
             layout(showlegend = FALSE)
     })
     output$countychange <- renderPlot({
+        
+# countychange was one of the more simple graphs included in my project. It's a
+# simple histogram with an input filter to determine which state the histogram
+# should display.
+        
         trend %>% 
+            
+# The three choices specified for this graph were the three states: "Wisconsin",
+# "Michigan" and "Pennsylvania". Therefore, the graph would be filtered by state
+# depending on the user's choice.
+            
             filter(state == input$state) %>% 
         ggplot(aes(x = dem_chg)) + 
             geom_histogram(binwidth = 5, 
@@ -544,11 +748,21 @@ server <- function(input, output) {
                  y = "Number of Couties in Selected State", 
                  subtitle = "Most counties swing towards Republicans") + 
             theme_economist() +  
+            
+# I decided to add a vertical line to separate the counties that swung for
+# democrats with the counties that swing from republicans.
+            
             geom_vline(xintercept = 0, 
                        alpha = 0.5, 
                        color = "purple")
     })
     output$devop <- renderPlotly({
+        
+# The devop graph is identical to the swingsmap graph, with one addition.
+# Included is a filter for the devloped environment variable: devo. The choices,
+# as specified above, are identical to the column names. Therefore, the graph
+# will be filtered by the user selected developed environment.
+        
             ggplotly(ggplot(data = trend %>% 
                                     filter(devo == input$devo), 
                             aes(geometry = geometry, 
@@ -572,16 +786,38 @@ server <- function(input, output) {
             layout(showlegend = FALSE)
     })
     output$pp <- renderPlot({
+        
+# pp creates the posterior probability distribution displayed in the Models
+# section of my project. The first step was to create a model for each election
+# year. post_12 represents the model for the 2012 election. post_16 represents
+# the model for the 2016 election.
+        
         post_12 <- countypres12 %>%
             ungroup() %>% 
             select(rep_vs, input$variable) %>% 
             rename(select_variable = input$variable) %>% 
+            
+# The most important part of post_12 and post_16 is the stan_glm. The formula
+# predicts republican vote share, rep_vs, depending on the selected variable.
+# Once again, these choices were specified in the ui.
+            
             stan_glm(formula = rep_vs ~ select_variable, 
                      refresh = 0, 
                      family = gaussian()) %>% 
+            
+# Because I wanted to combine the post_12 model with the post_16 model, I turned
+# the stan_glm output into a tibble. I then selected the predicted
+# select_variable values and added a new column with the year Therefore, when
+# merging the two models, the select_variable values would be differentiated by
+# year.
+            
             as_tibble() %>% 
             select(select_variable) %>% 
             mutate(year = "2012")
+        
+# To create post_16, I followed the same exact code from directly above with one
+# important change. Instead of using countypres12, I used countypres16, because
+# these predictions should be based on the 2016 presidential election.
         
         post_16 <- countypres16 %>%
             ungroup() %>% 
@@ -592,9 +828,21 @@ server <- function(input, output) {
                      family = gaussian()) %>% 
             as_tibble() %>% 
             select(select_variable) %>% 
+            
+# Here, I made sure to change the values in the year column from 2012 to 2016.
+            
             mutate(year = "2016")
         
+# Then, I combined post_12 and post_16 using the bind_rows function. Therefore,
+# the output would be a table with two columns: select_variable and year. The
+# year value would be 2012 or 2016, depending on which election the model is
+# making the predictions using. 
+        
         post_predictions <- bind_rows(post_12, post_16)
+        
+# Finally, I plotted the binded predictions with a simple geom_histogram. I madd
+# sure to set the fill variable to year, so that the bars would differ in color
+# depending on their year.
         
         ggplot(data = post_predictions, aes(x = select_variable, fill = year)) + 
             geom_histogram(aes(y = after_stat(count / sum(count))), 
@@ -608,10 +856,24 @@ server <- function(input, output) {
                  x = "% Influence on Republican Vote Share 
                  For Every 1% Increase in Variable") + 
             theme_economist() + 
+            
+# I changed the colors to royalblue and gold1, two of my favorites from Gov 50.
+# Also, I thought they looked good together, and created a nice overlapping
+# region.
+            
             scale_fill_manual(name = "Election Year", 
                               values = c("royalblue", "gold1"))
     })
+    
+# stats is a simply table that combines top_25_summary_states with
+# summary_stats. This table is displayed in the Models section of my project.
+    
     output$stats <- renderTable({
+        
+# I used the full_join function, because I wanted all of the rows and columns to
+# be included in the output. To allign all of the columns correctly and make
+# sure everything was included, I used the by argument.
+        
         full_join(top_25_summary_stats, summary_stats, 
                   by = c("white_pct", "nonwhite_pct", 
                          "less_college_pct", "college_more_pct", 
@@ -622,10 +884,20 @@ server <- function(input, output) {
                    "No College Degree %" = less_college_pct, 
                    "At Least College Degree %" = college_more_pct, 
                    "Average Population" = avg_pop, 
-                   "Average Median Household Income" = avg_income) %>% 
+                   "Average Median Household Income" = avg_income) %>%
+            
+# I changed the order of the columns in the new joined tibble using the relocate
+# function. I moved the Source column first to make the table easier to
+# interpret.
+            
             relocate("Source", .before = "White %")
     })
     output$bidenblue <- renderPlot({
+        
+# bidenblue is an extremely simple graph of the three rustbelt states filled in
+# blue. I used the plot_usmap function, rather than the geom_sf function,
+# because it's easier to use in simple circumstances. 
+        
         plot_usmap(regions = "states", 
                    include = c("WI", "MI", "PA"), 
                    fill = "blue1", 
