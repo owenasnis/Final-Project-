@@ -343,7 +343,7 @@ ui <- navbarPage(
              column(4,align = "center",
              h3("Pennsylvania (20 Electors)"), 
              p("In 2012, President Obama defeated Romney in Pennsylvania by 
-               287,865 votes (roughly 5.2%). claiming the commonwealth's 20 
+               287,865 votes (roughly 5.2%), claiming the commonwealth's 20 
                electoral votes. Four years later, Trump defeated Clinton in 
                Pennsylvania by 44,292 votes (roughly 0.7%). In four years, 
                Pennsylvania's electorate swung by 332,157 votes.")),
@@ -369,14 +369,20 @@ ui <- navbarPage(
                study how parts of the electorate changed preference between 
                election cycles, specifically the major demographic categories of 
                race, education attainment, monthly income and population within 
-               counties. Data collected for the analysis is from the MIT 
-               Election Lab and IPUMS NHGIS."), 
+               counties."), 
              h3("About Me"),
              p("My name is Owen Asnis and I am an A.B. candidate in Government 
                on the Public Policy track at Harvard College (class of 2023). 
-               You can reach me at oasnis@college.harvard.edu. My GitHub profile
-               and repository for this project can be found at 
-               https://github.com/owenasnis."))),  
+               You can reach me at oasnis@college.harvard.edu."), 
+             h3("Data Sources and GitHub Repository"), 
+             p("Data collected for this project comes from two major sources: 
+               the Massachusetts Institute of Technology Election Lab and the 
+               National Historical Geographic Information System. The MIT 
+               Election Lab provides all of the election results data used in 
+               the project, whereas NHGIS provides all of the demographic data 
+               used in the project. The full GitHub repository for this project 
+               can be found at this link: 
+               https://github.com/owenasnis/The-Battleground."))),  
     tabPanel("Results: President",
              fluidPage(
                  titlePanel("Results: President"),
@@ -395,6 +401,7 @@ ui <- navbarPage(
                  h3("County Trends: 2016 as compared to 2012 (Hover for 
                     Swings)"),
                  mainPanel(plotlyOutput("swingsmap"))),
+                 h3("County trends in between elections"), 
                  p("Republicans gained in nearly all counties. In Wisconsin, 
                    Donald Trump flipped many counties in the state's South-West
                    region and gained nearly 9 points in Brown County, home of 
@@ -408,9 +415,9 @@ ui <- navbarPage(
                    county. In Pennsylvania, Hillary Clinton performed relatively
                    well in the Philadelphia suburbs and Allegheny County - home 
                    of Pittsburgh. However, Trump outperformed Romney in the 
-                   state's smaller cities, especially Luzerne County - home 
-                   of Wilkes-Barre, Lackawanna County - home of Scranton - and 
-                   Erie County - home of Erie."), 
+                   state's smaller cities, especially Luzerne County, home 
+                   of Wilkes-Barre, Lackawanna County, home of Scranton, and 
+                   Erie County, home of Erie."), 
                  h3("County Trends By State"), 
                  fluidPage(
                      column(12,
@@ -436,7 +443,8 @@ ui <- navbarPage(
                                                           "City", 
                                                           "Metropolis"))),
                            mainPanel(
-                               plotlyOutput("devop"))))), 
+                               plotlyOutput("devop"))))),
+             h3("How county trends differed by developed environment"), 
              p("It's difficult to designate developed environments for counties. 
                For this project, county population was used. Any county with a 
                population of under 50,000 was designated as rural. While 50,000 
@@ -446,24 +454,24 @@ ui <- navbarPage(
                200,000 were designated as Urban/Suburban. Some suburban counties
                could certainly have more than 200,000, such as the suburbs of 
                Philadelphia, however these designations are meant to give a 
-               general sense for the size of the county. Counties with a 
+               general sense of the size of the county. Counties with a 
                population between 200,000 and 500,000 were designated as a Small 
                City. Counties with a population between 500,000 and 1,000,000 
                were designated as a City. Finally, counties with a population 
                above 1,000,000 were designated as a metropolis, or a large 
                city. These designations show that Trump significantly 
                outperformed expectations in rural counties - Trump outperformed 
-               Romney in every rural county. Trump also performed extremely well
-               in Urban/Suburban counties - in all but three, Trump outperformed 
-               Romney. Overall, Clinton performed well in Small City counties in 
-               Wisconsin and Michigan, but Trump performed well in Small City 
-               counties in Pennsylvania. Clinton largely outperformed Obama in 
-               City counties, with the exception being Macomb County, Michigan, 
-               part of the Detroit metropolitan area. Clinton saw solid gains in 
-               cities such as Madison, Milwaukee, Grand Rapids, and the 
-               Philadelphia metropolitan area. In the four metropolis counties, 
-               Trump outperformed Clinton in Detroit, however the three others 
-               were largely unchanged from 2012.")), 
+               Romney in all but one rural county. Trump also performed extremely 
+               wellin Urban/Suburban counties - in all but three, Trump 
+               outperformed Romney. Overall, Clinton performed well in Small 
+               City counties in Wisconsin and Michigan, but Trump performed well 
+               in Small City counties in Pennsylvania. Clinton largely 
+               outperformed Obama in City counties, with the exception being 
+               Macomb County, Michigan, part of the Detroit metropolitan area. 
+               Clinton saw solid gains in cities such as Madison, Milwaukee, 
+               Grand Rapids, and the Philadelphia metropolitan area. In the four 
+               metropolis counties, Trump outperformed Clinton in Detroit, 
+               however the three others were largely unchanged from 2012.")), 
     tabPanel("Models", 
              fluidPage(
                  column(12, 
@@ -480,25 +488,57 @@ ui <- navbarPage(
                                                     "college_more_pct"))), 
                      mainPanel(
                          plotOutput("pp"))))),
-             p("This graph represents the posterior probability distribution for
-               a regression model. The regression model calculates the expected 
-               change in Republican vote share for every percentage point 
-               increase in the dempgraphic categories of race and education 
-               attainment in Wisconsin, Michigan and Pennsylvania counties. The 
-               models were separated by election year to study the differences 
-               in voting tendancies between the 2012 presidential election and 
-               the 2016 presidential election. According to the models, race may 
-               have had a stronger influence in predicting republican vote share
-               in 2016, however, this prediction isn't made with overwhelming 
-               confidence. The graphs show, with uncertainty, that white voters 
-               tended to more strongly support Republicans in 2016, whereas 
-               non-white voters tended to more strongly support Democrats. The 
-               models were able to make clear, confident predictions in relation 
-               to education attainment. Voters without a college degree were 
-               more likely to support Republicans in 2016, and voters with at 
-               least a college degree were more likely to support Democrats. 
-               This prediction can be made with a good amount of certainty, 
-               because the histograms do not overlap."), 
+             h3("The Model: Set up and formula"), 
+             p("Models were created using the stan_glm function from the 
+               rstanarm package in R. Models were separated using two different 
+               datasets: one filtered to the 2012 election and one filtered to 
+               the 2016 election. The formula used in the statistical model 
+               predicted republican vote share with an intercept, based on a 
+               selected demographic category. Therefore, the formula is: rep_vs
+               ~ selected variable."), 
+             h3("The Variables: Defintions"), 
+             p("The white_pct variable represents the percentage of the 
+             population in a Wisconsin, Michigan or Pennsylvania county that is 
+               white. The nonwhite_pct variable represents the percentage of the 
+               population in a Wisconsin, Michigan or Pennsylvania county that 
+               is non-white. The less_college_pct variable represents the 
+               percentage of the population in a Wisconsin, Michigan or 
+               Pennsylvania county that doesn't have a college degree. The 
+               college_more_pct variable represents the percentage of the 
+               population in a Wisconsin, Michigan or Pennsylvania county that 
+               has a college degree or higher."),
+             h3("The Model: Discussion and Conclusions"), 
+             p("The values plotted in the histogram above represent the 
+               predicted republican vote share values excluding the intercept 
+               based on the selected variable. In simple terms what does this 
+               mean? The values plotted represent the predicted change in 
+               republican vote share for every percentage point increase in the 
+               selected variable within a county. For example, if the model is 
+               set to white_pct, the histogram is centered around 0.7 for 2016. 
+               This means for every 1% increase in the percentage of the 
+               population that is white in a county, the republican vote share 
+               would be predicted to be 0.7% higher in that county for 2016. By 
+               comparing the 2012 predictions to the 2016 predictions, we can 
+               visualize how these variables influenced the elections 
+               differently. For the two variables involving race, the histograms
+               overlap, indicating that we shouldn't be confident about the 
+               major conclusions. With this being said, it does appear that the 
+               white percentage was a stronger predictor of republican success 
+               in 2016 than it was in 2012. Additionally, the non-white 
+               percentage was a stronger predictor of democratic success in 2016 
+               than it was in 2012. Again, these conclusions are not made with 
+               overwhelming confidence, as the graphs overlap, and therefore, 
+               the true values may lead to entirely different conclusions. With 
+               the variables involving education attainment, we can come to 
+               confident conclusions, as the graphs have no overlapping regions.
+               In 2016, the percentage of people in a county with no college 
+               degree more strongly predicted republican sucsess than it did 
+               four years ealier. Additionally, the percentage of people in a 
+               county with a college degree or higher more strongly predicted 
+               democratic sucsess in 2016 than in 2012. Therefore, education 
+               attainment was a key demographic category that caused movement 
+               between the 2012 and 2016 presidential elections in Wisconsin, 
+               Michigan and Pennsylvania."), 
              h3("Statistics: Top 25 Swing Counties versus Overall"), 
              fluidPage(
                  column(12,
@@ -540,10 +580,13 @@ ui <- navbarPage(
                Pittsburgh, Philadelphia, Wilkes-Barre, Scranton, Erie and other 
                urban centers. Republicans will certainly contest many of the 
                Small City counties, and focus their efforts on driving up 
-               support in the more rural areas. While so much has changed 
-               between 2012 and 2020, one thing remains the same: the path to 
-               the White House runs through Wisconsin, Michigan and 
-               Pennsylvania.")))
+               support in the more rural areas. Additionally, both parties will 
+               be paying close attention to the demographic categories most 
+               likely to dramatically swing between elections, specifically 
+               race, education attainment and developed environment. While so 
+               much has changed between 2012 and 2020, one thing remains the 
+               same: the path to the White House runs through Wisconsin, 
+               Michigan and Pennsylvania.")))
 
 server <- function(input, output) {
     output$wimap <- renderPlot({

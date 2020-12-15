@@ -1,0 +1,12 @@
+name: thebattleground
+title: thebattleground
+username:
+account: owenasnis
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 3401074
+bundleId: 3989244
+url: https://owenasnis.shinyapps.io/thebattleground/
+when: 1607984514.60404
+asMultiple: FALSE
+asStatic: FALSE
