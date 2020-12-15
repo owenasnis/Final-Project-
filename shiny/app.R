@@ -309,10 +309,26 @@ summary_stats <- trend %>%
 ui <- navbarPage(
     "The Battleground: Wisconsin, Michigan and Pennsylvania in Contemporary 
     Presidential Elections",
-    theme = shinytheme("sandstone"), 
+    theme = shinytheme("sandstone"),
+    
+# I decided to put the About panel first, because I thought it was necessary to
+# have some background information before reading through the project. Within
+# this panel, I included many outputs of graphs and images to draw the reader's
+# attention into the project.
+    
     tabPanel("About the Project",
                  mainPanel(
+                     
+# I used the fluidRow and column functions to help arrange the page so that the
+# graphs and images would line up nicely.
+                     
                      fluidRow(
+                         
+# I set each column to 4 here, because the total panel is equal to 12.
+# Therefore, in order to have three even sections, each would have a value of 4.
+# Additionally, I had to be extremely careful with punctuation when arranging my
+# images and text.
+                         
                      column(4, 
                      plotOutput("wimap")), 
                  column(4, align = "center",
@@ -351,22 +367,22 @@ ui <- navbarPage(
                     imageOutput("paseal"))),
              h3("The Project: Motivation and Summary"), 
              p("Wisconsin, Michigan and Pennsylvania have 46 votes in the 
-               electoral college, and since 1988, these states have voted for 
-               the same presidential candidate. Therefore, these three 
+               electoral college, and since 1988, these states have voted  
+               together for every presidential election. Therefore, these three 
                battleground states swing the electoral college by 92 votes, 
                which in recent elections has decided the presidential election. 
                Considering how influential these three battleground states are, 
                it's important to understand voting tendencies in these states. A 
                few weeks ago, Wisconsin, Michigan and Pennsylvania voted 
                together again for Joseph R. Biden Jr., making the 
-               Pennsylvania-born Democrat the 46th President of the United 
+               Pennsylvania-born democrat the 46th President of the United 
                States. However, comprehensive data is not yet availible for the 
-               2020 Election. Therefore, in this project, results from the 2012 
+               2020 Election. Therefore, for this project, results from the 2012 
                and 2016 elections are studied. From 2012 to 2016, the electorate 
                in Wisconsin, Michigan and Pennsylvania swung by 1,020,051 votes 
                towards Republicans, awarding Donald Trump all 46 electoral votes 
                and the presidency. In order to understand this drastic swing, I 
-               study how parts of the electorate changed preference between 
+               study the parts of the electorate that changed preference between 
                election cycles, specifically the major demographic categories of 
                race, education attainment, monthly income and population within 
                counties."), 
@@ -379,29 +395,53 @@ ui <- navbarPage(
                the Massachusetts Institute of Technology Election Lab and the 
                National Historical Geographic Information System. The MIT 
                Election Lab provides all of the election results data used in 
-               the project, whereas NHGIS provides all of the demographic data 
+               the project, whereas NHGIS provides all of the demographics data 
                used in the project. The full GitHub repository for this project 
                can be found at this link: 
-               https://github.com/owenasnis/The-Battleground."))),  
+               https://github.com/owenasnis/The-Battleground."))), 
+
+# My next panel is the Results: President panel. I felt like the goal of this
+# panel was to privide background information about how the candidates performed
+# in 2012 and 2016. Therefore, I put this panel second. Overall, the panel is
+# very simple. However, I did have to use a selectInput function for the first
+# time.
+
     tabPanel("Results: President",
              fluidPage(
                  titlePanel("Results: President"),
-                 h3("Hover for Results"),
                  sidebarLayout(
                      sidebarPanel(
                          selectInput("year",
                                      "Select an election year:", 
+                                     
+# I set the choices equal to a vector of two values: 2012 and 2016. Therefore,
+# the user would be able to choose which year they wanted to view election
+# results from.
+                                     
                                      choices = list("2012", "2016"))),
                      mainPanel(
-                         plotlyOutput("results"))))), 
+                         plotlyOutput("results")))), 
+             p("Explore the presidential election results in 2012 or 2016. Hover 
+             for county level results and county population information.")), 
+
+# Next, is the What Changed? panel. The main goal of this panel is to explain
+# what changed between 2012 and 2016. It has three major outputs, all graphs,
+# and some text layered in between. Additionally, I had to use selectInput again
+# in order to set the choices for the user on two of the outputs.
+
     tabPanel("What Changed?", 
              fluidPage(
+                 
+# For this panel, I set the column value to 12, because I wanted each graph to
+# take up all of the horizontal area on the website. This way, the graphs would
+# be stacked on top of eachother.
+                 
                  column(12,
                  titlePanel("What Changed?"),
                  h3("County Trends: 2016 as compared to 2012 (Hover for 
                     Swings)"),
                  mainPanel(plotlyOutput("swingsmap"))),
-                 h3("County trends in between elections"), 
+                 h3("County trends: major findings"), 
                  p("Republicans gained in nearly all counties. In Wisconsin, 
                    Donald Trump flipped many counties in the state's South-West
                    region and gained nearly 9 points in Brown County, home of 
@@ -417,7 +457,8 @@ ui <- navbarPage(
                    of Pittsburgh. However, Trump outperformed Romney in the 
                    state's smaller cities, especially Luzerne County, home 
                    of Wilkes-Barre, Lackawanna County, home of Scranton, and 
-                   Erie County, home of Erie."), 
+                   Erie County, home of Erie. See the graph below for the 
+                   distribution of county swings for each state."), 
                  h3("County Trends By State"), 
                  fluidPage(
                      column(12,
@@ -461,8 +502,8 @@ ui <- navbarPage(
                above 1,000,000 were designated as a metropolis, or a large 
                city. These designations show that Trump significantly 
                outperformed expectations in rural counties - Trump outperformed 
-               Romney in all but one rural county. Trump also performed extremely 
-               wellin Urban/Suburban counties - in all but three, Trump 
+               Romney in all but one rural county. Trump performed extremely 
+               well in Urban/Suburban counties too - in all but three, Trump 
                outperformed Romney. Overall, Clinton performed well in Small 
                City counties in Wisconsin and Michigan, but Trump performed well 
                in Small City counties in Pennsylvania. Clinton largely 
@@ -472,6 +513,11 @@ ui <- navbarPage(
                Grand Rapids, and the Philadelphia metropolitan area. In the four 
                metropolis counties, Trump outperformed Clinton in Detroit, 
                however the three others were largely unchanged from 2012.")), 
+
+# Next is the Models panel. This panel has one graph with a selectInput
+# function, one table output and text in between. This panel is meant to explain
+# why the changes occured in the counties by studying demographics.
+
     tabPanel("Models", 
              fluidPage(
                  column(12, 
@@ -501,7 +547,7 @@ ui <- navbarPage(
              population in a Wisconsin, Michigan or Pennsylvania county that is 
                white. The nonwhite_pct variable represents the percentage of the 
                population in a Wisconsin, Michigan or Pennsylvania county that 
-               is non-white. The less_college_pct variable represents the 
+               is not white. The less_college_pct variable represents the 
                percentage of the population in a Wisconsin, Michigan or 
                Pennsylvania county that doesn't have a college degree. The 
                college_more_pct variable represents the percentage of the 
@@ -515,9 +561,9 @@ ui <- navbarPage(
                republican vote share for every percentage point increase in the 
                selected variable within a county. For example, if the model is 
                set to white_pct, the histogram is centered around 0.7 for 2016. 
-               This means for every 1% increase in the percentage of the 
+               This means for every 1 point increase in the percentage of the 
                population that is white in a county, the republican vote share 
-               would be predicted to be 0.7% higher in that county for 2016. By 
+               would be predicted to be 0.7% higher in that county in 2016. By 
                comparing the 2012 predictions to the 2016 predictions, we can 
                visualize how these variables influenced the elections 
                differently. For the two variables involving race, the histograms
@@ -558,10 +604,19 @@ ui <- navbarPage(
                diverse, less educated and smaller. The median household income 
                was, on average, lower for swing counties, however, there wasn't 
                an enormous difference.")), 
+
+# Lastly is the Moving Forward panel. This panel is extremely simple with one
+# graph, one image and text at the end. This panel serves as the conclusion to
+# my project.
+
     tabPanel("Moving Forward", 
                  titlePanel("The Future of the Battleground"),
                  h3("2020: Joseph R. Biden Jr. Flips the Battleground"),
              fluidPage(
+                 
+# Here I set the column value to 6, because I wanted the graph to take up half
+# of the horizontal area and the image to take up the other half.
+                 
                  column(6, 
                      plotOutput("bidenblue")), 
                  column(6,
@@ -583,10 +638,14 @@ ui <- navbarPage(
                support in the more rural areas. Additionally, both parties will 
                be paying close attention to the demographic categories most 
                likely to dramatically swing between elections, specifically 
-               race, education attainment and developed environment. While so 
-               much has changed between 2012 and 2020, one thing remains the 
-               same: the path to the White House runs through Wisconsin, 
-               Michigan and Pennsylvania.")))
+               education attainment and developed environment. While so much has 
+               changed between 2012 and 2020, one thing remains the same: the 
+               path to the White House runs through Wisconsin, Michigan and 
+               Pennsylvania. (Image Source: Andrew Harnik, AP Photographer)")))
+
+# All of the output names are specifically explained in the server part of the
+# code, and this is why I didn't explain this in the comments for the ui part of
+# the code.
 
 server <- function(input, output) {
     output$wimap <- renderPlot({
